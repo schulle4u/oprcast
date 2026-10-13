@@ -1,16 +1,16 @@
 <header class="hero">
-    <p class="eyebrow">Flatfile Podcast Publisher</p>
+    <p class="eyebrow"><?php echo htmlspecialchars($localization->get('publisher_name'), ENT_QUOTES, 'UTF-8'); ?></p>
     <h1><?php echo htmlspecialchars($config['title'], ENT_QUOTES, 'UTF-8'); ?></h1>
-    <p><?php echo htmlspecialchars($config['description'], ENT_QUOTES, 'UTF-8'); ?></p>
+    <p><?php echo htmlspecialchars($localization->get('site_description'), ENT_QUOTES, 'UTF-8'); ?></p>
 </header>
 <?php if ($seriesList === []): ?>
 <section class="empty-state" aria-labelledby="empty-title">
-    <h2 id="empty-title">Noch keine Podcasts veröffentlicht</h2>
-    <p>Lege für jede Serie einen Ordner mit einer <code>index.md</code> unter <code>content/</code> an.</p>
+    <h2 id="empty-title"><?php echo htmlspecialchars($localization->get('no_podcasts_title'), ENT_QUOTES, 'UTF-8'); ?></h2>
+    <p><?php echo $localization->get('no_podcasts_help'); ?></p>
 </section>
 <?php else: ?>
 <section aria-labelledby="series-title">
-    <h2 id="series-title">Podcastserien</h2>
+    <h2 id="series-title"><?php echo htmlspecialchars($localization->get('podcast_series'), ENT_QUOTES, 'UTF-8'); ?></h2>
     <div class="card-grid">
 <?php foreach ($seriesList as $item): ?>
         <article class="card">

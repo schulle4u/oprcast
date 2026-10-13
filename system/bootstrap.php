@@ -6,6 +6,7 @@ use Oprcast\Application;
 use Oprcast\ContentRepository;
 use Oprcast\FeedBuilder;
 use Oprcast\FrontMatter;
+use Oprcast\Localization;
 use Oprcast\Markdown;
 
 if (PHP_VERSION_ID < 80300) {
@@ -27,9 +28,11 @@ spl_autoload_register(static function (string $class): void {
 
 $config = require __DIR__ . '/config/site.php';
 date_default_timezone_set($config['timezone']);
+$localization = new Localization((string) $config['language'], __DIR__ . '/lang');
+$config['language_code'] = $localization->languageCode();
 
 $markdown = new Markdown();
 $repository = new ContentRepository($config['content_path'], new FrontMatter(), $markdown, $config['cdn_url'] ?? null);
 
-return new Application($config, $repository, $markdown, new FeedBuilder($config, $markdown));
+return new Application($config, $repository, $markdown, new FeedBuilder($config, $markdown), $localization);
 

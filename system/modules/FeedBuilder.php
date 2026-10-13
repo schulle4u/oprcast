@@ -29,7 +29,7 @@ final class FeedBuilder
         $this->element($xml, 'title', (string) $series['title']);
         $this->element($xml, 'link', $seriesUrl);
         $this->element($xml, 'description', (string) ($series['description'] ?? $this->markdown->text((string) $series['body'])));
-        $this->element($xml, 'language', (string) ($series['language'] ?? $this->config['language']));
+        $this->element($xml, 'language', (string) ($series['language'] ?? $this->config['language_code'] ?? $this->config['language']));
         $this->element($xml, 'lastBuildDate', $this->lastModified($series, $episodes)->format(DateTimeInterface::RFC2822));
         if (isset($series['copyright'])) {
             $this->element($xml, 'copyright', (string) $series['copyright']);
@@ -167,7 +167,7 @@ final class FeedBuilder
             'home_page_url' => $this->url($baseUrl, $series['slug'] . '/'),
             'feed_url' => $this->url($baseUrl, $series['slug'] . '/feed.json'),
             'description' => (string) ($series['description'] ?? ''),
-            'language' => (string) ($series['language'] ?? $this->config['language']),
+            'language' => (string) ($series['language'] ?? $this->config['language_code'] ?? $this->config['language']),
             'items' => $items,
         ];
         if ($icon = $repository->mediaUrl($series, 'image', $baseUrl)) {

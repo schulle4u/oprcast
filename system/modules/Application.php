@@ -13,6 +13,7 @@ final class Application
         private readonly ContentRepository $repository,
         private readonly Markdown $markdown,
         private readonly FeedBuilder $feeds,
+        private readonly Localization $localization,
     ) {
     }
 
@@ -30,10 +31,13 @@ final class Application
             }
             $this->dispatch($this->requestPath());
         } catch (ContentException $exception) {
-            $this->html('error', ['title' => 'Nicht gefunden', 'message' => $exception->getMessage()], 404);
+            $this->html('error', [
+                'title' => $this->localization->get('not_found_title'),
+                'message' => $this->localization->get('not_found_message'),
+            ], 404);
         } catch (Throwable $exception) {
-            $message = $this->config['development'] ? $exception->getMessage() : 'Beim Verarbeiten der Anfrage ist ein Fehler aufgetreten.';
-            $this->html('error', ['title' => 'Serverfehler', 'message' => $message], 500);
+            $message = $this->config['development'] ? $exception->getMessage() : $this->localization->get('server_error_message');
+            $this->html('error', ['title' => $this->localization->get('server_error_title'), 'message' => $message], 500);
         }
     }
 
@@ -72,7 +76,7 @@ final class Application
             $this->html('series', ['series' => $series, 'episodes' => $this->repository->episodes($match[1])]);
             return;
         }
-        throw new ContentException('Die angeforderte Seite wurde nicht gefunden.');
+        throw new ContentException('Route not found.');
     }
 
     private function feed(string $slug, string $format): void
@@ -99,6 +103,7 @@ final class Application
         $data['pages'] = $this->repository->pages();
         $data['repository'] = $this->repository;
         $data['markdown'] = $this->markdown;
+        $data['localization'] = $this->localization;
         extract($data, EXTR_SKIP);
         ob_start();
         require dirname(__DIR__) . '/layouts/' . $template . '.php';

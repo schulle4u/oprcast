@@ -1,0 +1,30 @@
+<?php
+
+declare(strict_types=1);
+
+return [
+    'language_code' => 'en',
+    'date_format' => 'F j, Y',
+    'time_format' => 'g:i a',
+    'episode_datetime' => '{date} at {time}',
+    'site_description' => 'Podcasts, published independently.',
+    'skip_to_content' => 'Skip to content',
+    'main_navigation' => 'Main navigation',
+    'published_with' => 'Published with OPRCast.',
+    'publisher_name' => 'Flat-file podcast publisher',
+    'no_podcasts_title' => 'No podcasts published yet',
+    'no_podcasts_help' => 'Create a folder containing an <code>index.md</code> file below <code>content/</code> for each series.',
+    'podcast_series' => 'Podcast series',
+    'podcast' => 'Podcast',
+    'cover_alt' => 'Cover of {title}',
+    'episodes' => 'Episodes',
+    'no_episodes' => 'No episodes published yet.',
+    'breadcrumbs' => 'Breadcrumbs',
+    'audio_fallback' => 'Your browser does not support the audio player.',
+    'download_audio' => 'Download audio',
+    'not_found_title' => 'Not found',
+    'not_found_message' => 'The requested page could not be found.',
+    'server_error_title' => 'Server error',
+    'server_error_message' => 'An error occurred while processing the request.',
+    'back_to_home' => 'Back to the home page',
+];

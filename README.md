@@ -77,6 +77,12 @@ Static pages such as an imprint can be placed in `content/pages/imprint.md`; the
 
 Supported front matter values are strings, integers, booleans, and simple lists. Supported Markdown includes headings, paragraphs, ordered and unordered lists, links, emphasis, blockquotes, inline code, and fenced code blocks. Raw HTML is escaped intentionally.
 
+## Localization
+
+The `language` setting in `system/config/site.php` selects the CMS language. Its value is the filename below `system/lang` without the `.php` extension; for example, `de` loads `system/lang/de.php`. German and English translations are included.
+
+Language files are PHP arrays containing simple string key-value pairs. In addition to the visible layout strings and ARIA labels, each file defines the site description, the language code for the HTML `lang` attribute, and the date and time formats used for episodes. Copy an existing file to add another CMS language and keep all keys intact.
+
 ## Validate and test
 
 ```sh

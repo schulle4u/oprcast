@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 return [
     'title' => 'OPRCast',
-    'description' => 'Podcasts, unabhängig veröffentlicht.',
-    'language' => 'de-DE',
+    // Selects the matching CMS translation in system/lang/{language}.php.
+    'language' => 'de',
     'timezone' => 'Europe/Berlin',
     // Set this in production, for example: https://podcasts.example.org
     'base_url' => getenv('OPRCAST_BASE_URL') ?: null,

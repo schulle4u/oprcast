@@ -8,6 +8,7 @@ use Oprcast\FrontMatter;
 use Oprcast\Markdown;
 use Oprcast\Validator;
 use Oprcast\Application;
+use Oprcast\Localization;
 
 require dirname(__DIR__) . '/system/bootstrap.php';
 
@@ -31,6 +32,14 @@ $test(str_contains($rendered, '<strong>world</strong>'), 'Markdown renders stron
 $test(!str_contains($rendered, '<script>'), 'Markdown escapes raw HTML.');
 $chapters = $markdown->chapters("## Kapitel\n\n- 00:00 Intro\n- 01:02 Thema");
 $test(count($chapters) === 2 && $chapters[1]['startTime'] === 62, 'Markdown extracts chapters.');
+
+$german = new Localization('de', dirname(__DIR__) . '/system/lang');
+$test($german->languageCode() === 'de-DE', 'Localization provides the HTML language code.');
+$test($german->get('cover_alt', ['title' => 'Test']) === 'Cover von Test', 'Localization replaces named placeholders.');
+$test(
+    $german->formatEpisodeDate(new DateTimeImmutable('2025-01-01T10:05:00+01:00')) === '01.01.2025, 10:05 Uhr',
+    'Localization formats episode dates and times.',
+);
 
 $fixture = sys_get_temp_dir() . '/oprcast-test-' . bin2hex(random_bytes(4));
 mkdir($fixture . '/test-cast', 0777, true);
@@ -115,8 +124,8 @@ if (class_exists(XMLWriter::class)) {
 
     $appConfig = [
         'title' => 'Test Site',
-        'description' => 'Test description',
-        'language' => 'en-US',
+        'language' => 'en',
+        'language_code' => 'en',
         'timezone' => 'UTC',
         'base_url' => 'https://example.test',
         'cdn_url' => null,
@@ -124,12 +133,16 @@ if (class_exists(XMLWriter::class)) {
         'feed_limit' => 100,
         'development' => true,
     ];
-    $application = new Application($appConfig, $repository, $markdown, $feeds);
+    $english = new Localization('en', dirname(__DIR__) . '/system/lang');
+    $application = new Application($appConfig, $repository, $markdown, $feeds, $english);
     $_SERVER = ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/test-cast/first/', 'SCRIPT_NAME' => '/index.php', 'HTTP_HOST' => 'example.test'];
     ob_start();
     $application->run();
     $episodePage = (string) ob_get_clean();
     $test(str_contains($episodePage, '<h1>First episode</h1>'), 'Application routes episode pages.');
+    $test(str_contains($episodePage, '<html lang="en">'), 'Application uses the localized HTML language code.');
+    $test(str_contains($episodePage, 'January 1, 2025 at 10:00 am'), 'Application displays localized episode dates and times.');
+    $test(str_contains($episodePage, 'Your browser does not support the audio player.'), 'Application renders localized layout strings.');
 
     $_SERVER['REQUEST_URI'] = '/test-cast/feed.xml';
     ob_start();
