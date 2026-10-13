@@ -22,7 +22,7 @@ final class Validator
         foreach ($allSeries as $series) {
             $slugs = [];
             $this->required($series, ['title', 'description', 'language', 'author', 'image', 'category', 'explicit'], $errors);
-            $this->localFile($series, 'image', $errors);
+            $this->localFile($repository, $series, 'image', $errors);
             if (isset($series['type']) && !in_array($series['type'], ['episodic', 'serial'], true)) {
                 $errors[] = "{$series['source']}: type must be episodic or serial.";
             }
@@ -35,7 +35,7 @@ final class Validator
             }
             foreach ($episodes as $episode) {
                 $this->required($episode, ['title', 'date', 'guid', 'audio', 'audio_type', 'audio_length', 'duration', 'episode_type'], $errors);
-                $this->localFile($episode, 'audio', $errors);
+                $this->localFile($repository, $episode, 'audio', $errors);
                 if (isset($slugs[$episode['slug']])) {
                     $errors[] = "{$episode['source']}: duplicate episode slug also used in {$slugs[$episode['slug']]}.";
                 }
@@ -90,9 +90,9 @@ final class Validator
     }
 
     /** @param list<string> $errors */
-    private function localFile(array $item, string $field, array &$errors): void
+    private function localFile(ContentRepository $repository, array $item, string $field, array &$errors): void
     {
-        if (!isset($item[$field]) || filter_var($item[$field], FILTER_VALIDATE_URL) !== false) {
+        if (!isset($item[$field]) || filter_var($item[$field], FILTER_VALIDATE_URL) !== false || $repository->usesCdnForRelativeMedia()) {
             return;
         }
         $path = dirname((string) $item['source']) . '/' . ltrim((string) $item[$field], '/');

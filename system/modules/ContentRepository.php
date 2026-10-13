@@ -9,11 +9,24 @@ use FilesystemIterator;
 
 final class ContentRepository
 {
+    private readonly ?string $cdnUrl;
+
     public function __construct(
         private readonly string $root,
         private readonly FrontMatter $frontMatter,
         private readonly Markdown $markdown,
+        ?string $cdnUrl = null,
     ) {
+        $cdnUrl = is_string($cdnUrl) ? trim($cdnUrl) : null;
+        if ($cdnUrl !== null && $cdnUrl !== '') {
+            $scheme = strtolower((string) parse_url($cdnUrl, PHP_URL_SCHEME));
+            if (filter_var($cdnUrl, FILTER_VALIDATE_URL) === false || !in_array($scheme, ['http', 'https'], true)) {
+                throw new ContentException("Invalid CDN URL '{$cdnUrl}'.");
+            }
+            $this->cdnUrl = rtrim($cdnUrl, '/');
+            return;
+        }
+        $this->cdnUrl = null;
     }
 
     /** @return list<array<string, mixed>> */
@@ -130,7 +143,16 @@ final class ContentRepository
         if (str_contains($value, '..') || str_contains($value, '\\')) {
             throw new ContentException("Unsafe media path '{$value}'.");
         }
-        return rtrim($baseUrl, '/') . '/content/' . rawurlencode((string) $item['series_slug']) . '/' . implode('/', array_map('rawurlencode', explode('/', ltrim($value, '/'))));
+        $path = implode('/', array_map('rawurlencode', explode('/', ltrim($value, '/'))));
+        if ($this->cdnUrl !== null) {
+            return $this->cdnUrl . '/' . $path;
+        }
+        return rtrim($baseUrl, '/') . '/content/' . rawurlencode((string) $item['series_slug']) . '/' . $path;
+    }
+
+    public function usesCdnForRelativeMedia(): bool
+    {
+        return $this->cdnUrl !== null;
     }
 
     /** @return array<string, mixed> */

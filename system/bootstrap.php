@@ -29,7 +29,7 @@ $config = require __DIR__ . '/config/site.php';
 date_default_timezone_set($config['timezone']);
 
 $markdown = new Markdown();
-$repository = new ContentRepository($config['content_path'], new FrontMatter(), $markdown);
+$repository = new ContentRepository($config['content_path'], new FrontMatter(), $markdown, $config['cdn_url'] ?? null);
 
 return new Application($config, $repository, $markdown, new FeedBuilder($config, $markdown));
 

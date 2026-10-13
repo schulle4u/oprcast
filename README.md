@@ -65,6 +65,14 @@ Episode notes with **basic Markdown**.
 
 Put local cover and audio files next to the Markdown files. Absolute HTTPS URLs are also supported. A GUID must never change after publication.
 
+To serve media from a CDN, set `OPRCAST_CDN_URL` (or `cdn_url` in `system/config/site.php`), for example `https://cdn.podcast.org/`. Relative media paths are then resolved below that URL:
+
+```markdown
+audio: mypodcast/first-episode.mp3
+```
+
+This produces `https://cdn.podcast.org/mypodcast/first-episode.mp3`. The setting applies to relative audio and image paths; absolute HTTP(S) URLs remain unchanged.
+
 Static pages such as an imprint can be placed in `content/pages/imprint.md`; their front matter only needs a `title`.
 
 Supported front matter values are strings, integers, booleans, and simple lists. Supported Markdown includes headings, paragraphs, ordered and unordered lists, links, emphasis, blockquotes, inline code, and fenced code blocks. Raw HTML is escaped intentionally.

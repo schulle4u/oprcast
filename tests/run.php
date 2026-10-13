@@ -76,6 +76,27 @@ $episodes = $repository->episodes('test-cast');
 $test($series['title'] === 'Test Cast', 'Repository loads a series.');
 $test(count($episodes) === 1 && $episodes[0]['date'] instanceof DateTimeImmutable, 'Repository loads and normalizes episodes.');
 $test((new Validator())->validate($repository) === [], 'Validator accepts a complete fixture.');
+$test(
+    $repository->mediaUrl($episodes[0], 'audio', 'https://example.test') === 'https://example.test/content/test-cast/episode.mp3',
+    'Repository resolves relative media against the local content directory.',
+);
+
+$cdnRepository = new ContentRepository($fixture, $frontMatter, $markdown, 'https://cdn.podcast.org/');
+$cdnEpisode = $episodes[0];
+$cdnEpisode['audio'] = 'mypodcast/first episode.mp3';
+$test(
+    $cdnRepository->mediaUrl($cdnEpisode, 'audio', 'https://example.test') === 'https://cdn.podcast.org/mypodcast/first%20episode.mp3',
+    'Repository resolves relative media against the configured CDN URL.',
+);
+$cdnEpisode['audio'] = 'https://media.example.org/episode.mp3';
+$test(
+    $cdnRepository->mediaUrl($cdnEpisode, 'audio', 'https://example.test') === 'https://media.example.org/episode.mp3',
+    'Repository preserves absolute media URLs when a CDN URL is configured.',
+);
+
+unlink($fixture . '/test-cast/episode.mp3');
+$test((new Validator())->validate($cdnRepository) === [], 'Validator does not require CDN-backed media to exist locally.');
+file_put_contents($fixture . '/test-cast/episode.mp3', 'fixture-audio');
 
 if (class_exists(XMLWriter::class)) {
     $config = ['language' => 'en-US', 'feed_limit' => 100];
@@ -83,10 +104,12 @@ if (class_exists(XMLWriter::class)) {
     $rss = $feeds->rss($series, $episodes, 'https://example.test', $repository);
     $atom = $feeds->atom($series, $episodes, 'https://example.test', $repository);
     $json = json_decode($feeds->json($series, $episodes, 'https://example.test', $repository), true, flags: JSON_THROW_ON_ERROR);
+    $cdnRss = $feeds->rss($series, $episodes, 'https://example.test', $cdnRepository);
     $chaptersJson = json_decode($feeds->chapters($episodes[0]), true, flags: JSON_THROW_ON_ERROR);
     $test(simplexml_load_string($rss) !== false, 'RSS is well-formed XML.');
     $test(simplexml_load_string($atom) !== false, 'Atom is well-formed XML.');
     $test(str_contains($rss, '<podcast:chapters'), 'RSS links Podcasting 2.0 chapters.');
+    $test(str_contains($cdnRss, 'url="https://cdn.podcast.org/episode.mp3"'), 'RSS uses the configured CDN URL for relative enclosures.');
     $test($json['version'] === 'https://jsonfeed.org/version/1.1', 'JSON Feed uses version 1.1.');
     $test($chaptersJson['chapters'][1]['startTime'] === 30, 'Chapter feed contains timestamps.');
 
@@ -96,6 +119,7 @@ if (class_exists(XMLWriter::class)) {
         'language' => 'en-US',
         'timezone' => 'UTC',
         'base_url' => 'https://example.test',
+        'cdn_url' => null,
         'content_path' => $fixture,
         'feed_limit' => 100,
         'development' => true,
