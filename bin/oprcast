@@ -1,0 +1,24 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Oprcast\Validator;
+
+$application = require dirname(__DIR__) . '/system/bootstrap.php';
+$command = $argv[1] ?? 'help';
+
+if ($command !== 'validate') {
+    fwrite(STDOUT, "OPRCast\n\nUsage:\n  php bin/oprcast validate\n");
+    exit($command === 'help' ? 0 : 2);
+}
+
+$errors = (new Validator())->validate($application->repository());
+if ($errors === []) {
+    fwrite(STDOUT, "Content is valid.\n");
+    exit(0);
+}
+
+fwrite(STDERR, "Content validation failed:\n\n- " . implode("\n- ", $errors) . "\n");
+exit(1);
+
