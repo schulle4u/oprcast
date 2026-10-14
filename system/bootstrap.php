@@ -32,7 +32,7 @@ $localization = new Localization((string) $config['language'], __DIR__ . '/lang'
 $config['language_code'] = $localization->languageCode();
 $config['site_description'] = $localization->get('site_description');
 
-$markdown = new Markdown();
+$markdown = new Markdown($localization->get('chapters_keyword'));
 $repository = new ContentRepository($config['content_path'], new FrontMatter(), $markdown, $config['cdn_url'] ?? null);
 
 return new Application($config, $repository, $markdown, new FeedBuilder($config, $markdown), $localization);

@@ -6,6 +6,13 @@ namespace Oprcast;
 
 final class Markdown
 {
+    public function __construct(private readonly string $chapterKeyword)
+    {
+        if (trim($chapterKeyword) === '') {
+            throw new \InvalidArgumentException('The chapter keyword must not be empty.');
+        }
+    }
+
     public function render(string $markdown): string
     {
         $lines = explode("\n", str_replace(["\r\n", "\r"], "\n", $markdown));
@@ -87,7 +94,8 @@ final class Markdown
     /** @return list<array{startTime: int, title: string}> */
     public function chapters(string $markdown): array
     {
-        if (preg_match('/^##\s+Kapitel\s*$([\s\S]*?)(?=^#{1,2}\s|\z)/mi', $markdown, $section) !== 1) {
+        $keyword = preg_quote($this->chapterKeyword, '/');
+        if (preg_match('/^##\s+' . $keyword . '\s*$([\s\S]*?)(?=^#{1,2}\s|\z)/miu', $markdown, $section) !== 1) {
             return [];
         }
 

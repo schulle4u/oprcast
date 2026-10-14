@@ -25,15 +25,20 @@ $test($parsed['meta']['title'] === 'Test', 'Front matter parses strings.');
 $test($parsed['meta']['explicit'] === false, 'Front matter parses booleans.');
 $test($parsed['meta']['categories'] === ['Technology'], 'Front matter parses lists.');
 
-$markdown = new Markdown();
+$german = new Localization('de', dirname(__DIR__) . '/system/lang');
+$markdown = new Markdown($german->get('chapters_keyword'));
 $rendered = $markdown->render("## Heading\n\nHello **world**.\n\n<script>alert(1)</script>");
 $test(str_contains($rendered, '<h2 id="heading">Heading</h2>'), 'Markdown renders headings.');
 $test(str_contains($rendered, '<strong>world</strong>'), 'Markdown renders strong text.');
 $test(!str_contains($rendered, '<script>'), 'Markdown escapes raw HTML.');
 $chapters = $markdown->chapters("## Kapitel\n\n- 00:00 Intro\n- 01:02 Thema");
 $test(count($chapters) === 2 && $chapters[1]['startTime'] === 62, 'Markdown extracts chapters.');
+$english = new Localization('en', dirname(__DIR__) . '/system/lang');
+$englishMarkdown = new Markdown($english->get('chapters_keyword'));
+$englishChapters = $englishMarkdown->chapters("## Chapters\n\n- 00:00 Intro\n- 01:02 Topic");
+$test(count($englishChapters) === 2 && $englishChapters[1]['startTime'] === 62, 'Markdown extracts localized chapters.');
+$test($englishMarkdown->chapters("## Kapitel\n\n- 00:00 Intro") === [], 'Markdown only recognizes the configured chapter keyword.');
 
-$german = new Localization('de', dirname(__DIR__) . '/system/lang');
 $test($german->languageCode() === 'de-DE', 'Localization provides the HTML language code.');
 $test($german->get('cover_alt', ['title' => 'Test']) === 'Cover von Test', 'Localization replaces named placeholders.');
 $test(

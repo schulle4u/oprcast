@@ -16,6 +16,7 @@ return [
     'no_podcasts_help' => 'Create a folder containing an <code>index.md</code> file below <code>content/</code> for each series.',
     'podcast_series' => 'Podcast series',
     'podcast' => 'Podcast',
+    'chapters_keyword' => 'Chapters',
     'cover_alt' => 'Cover of {title}',
     'episodes' => 'Episodes',
     'all_episodes' => 'All episodes',

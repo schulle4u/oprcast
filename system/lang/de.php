@@ -16,6 +16,7 @@ return [
     'no_podcasts_help' => 'Lege für jede Serie einen Ordner mit einer <code>index.md</code> unter <code>content/</code> an.',
     'podcast_series' => 'Podcastserien',
     'podcast' => 'Podcast',
+    'chapters_keyword' => 'Kapitel',
     'cover_alt' => 'Cover von {title}',
     'episodes' => 'Episoden',
     'all_episodes' => 'Alle Episoden',
