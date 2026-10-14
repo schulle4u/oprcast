@@ -15,6 +15,10 @@ return [
         'extension' => '.ogg',
         'mime_type' => 'audio/ogg',
     ],
+    'opus' => [
+        'extension' => '.opus',
+        'mime_type' => 'audio/opus',
+    ],
     'flac' => [
         'extension' => '.flac',
         'mime_type' => 'audio/flac',
