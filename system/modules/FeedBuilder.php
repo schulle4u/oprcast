@@ -13,8 +13,13 @@ final class FeedBuilder
     {
     }
 
-    public function rss(array $series, array $episodes, string $baseUrl, ContentRepository $repository): string
+    public function rss(array $series, array $episodes, string $baseUrl, ContentRepository $repository, ?string $mediaFormat = null): string
     {
+        $defaultAlias = $mediaFormat === null;
+        $mediaFormat ??= $repository->defaultFormat($series);
+        if (!in_array($mediaFormat, $repository->seriesFormats($series), true)) {
+            throw new ContentException("{$series['source']}: media format '{$mediaFormat}' is not enabled for this podcast.");
+        }
         $xml = $this->writer();
         $xml->startElement('rss');
         $xml->writeAttribute('version', '2.0');
@@ -25,7 +30,8 @@ final class FeedBuilder
         $xml->startElement('channel');
 
         $seriesUrl = $this->url($baseUrl, $series['slug'] . '/');
-        $feedUrl = $this->url($baseUrl, $series['slug'] . '/feed.xml');
+        $feedName = $defaultAlias ? 'feed.xml' : 'feed.' . $mediaFormat . '.xml';
+        $feedUrl = $this->url($baseUrl, $series['slug'] . '/' . $feedName);
         $this->element($xml, 'title', (string) $series['title']);
         $this->element($xml, 'link', $seriesUrl);
         $this->element($xml, 'description', (string) ($series['description'] ?? $this->markdown->text((string) $series['body'])));
@@ -74,13 +80,9 @@ final class FeedBuilder
             $xml->startElement('content:encoded');
             $xml->writeCdata((string) $episode['html']);
             $xml->endElement();
-            if ($audio = $repository->mediaUrl($episode, 'audio', $baseUrl)) {
-                $xml->startElement('enclosure');
-                $xml->writeAttribute('url', $audio);
-                $xml->writeAttribute('length', (string) ($episode['audio_length'] ?? 0));
-                $xml->writeAttribute('type', (string) ($episode['audio_type'] ?? 'audio/mpeg'));
-                $xml->endElement();
-            }
+            $enclosures = $repository->enclosures($series, $episode, $baseUrl);
+            $this->writeEnclosure($xml, $repository->enclosure($series, $episode, $mediaFormat, $baseUrl));
+            $this->writeAlternateEnclosures($xml, $enclosures, $mediaFormat);
             foreach (['duration', 'episode', 'season'] as $tag) {
                 if (isset($episode[$tag])) {
                     $this->element($xml, 'itunes:' . $tag, (string) $episode[$tag]);
@@ -156,13 +158,10 @@ final class FeedBuilder
             $xml->text((string) ($series['title'] ?? $episode['series_title'] ?? $seriesSlug));
             $xml->endElement();
             $this->element($xml, 'itunes:author', (string) ($series['author'] ?? $series['title'] ?? ''));
-            if ($audio = $repository->mediaUrl($episode, 'audio', $baseUrl)) {
-                $xml->startElement('enclosure');
-                $xml->writeAttribute('url', $audio);
-                $xml->writeAttribute('length', (string) ($episode['audio_length'] ?? 0));
-                $xml->writeAttribute('type', (string) ($episode['audio_type'] ?? 'audio/mpeg'));
-                $xml->endElement();
-            }
+            $enclosures = $repository->enclosures($series, $episode, $baseUrl);
+            $defaultFormat = $repository->defaultFormat($series);
+            $this->writeEnclosure($xml, $repository->enclosure($series, $episode, $defaultFormat, $baseUrl));
+            $this->writeAlternateEnclosures($xml, $enclosures, $defaultFormat);
             foreach (['duration', 'episode', 'season'] as $tag) {
                 if (isset($episode[$tag])) {
                     $this->element($xml, 'itunes:' . $tag, (string) $episode[$tag]);
@@ -205,8 +204,8 @@ final class FeedBuilder
             $this->element($xml, 'published', $episode['date']->format(DateTimeInterface::ATOM));
             $this->element($xml, 'updated', (new \DateTimeImmutable('@' . $episode['modified']))->format(DateTimeInterface::ATOM));
             $this->link($xml, $url, 'alternate', 'text/html');
-            if ($audio = $repository->mediaUrl($episode, 'audio', $baseUrl)) {
-                $this->link($xml, $audio, 'enclosure', (string) ($episode['audio_type'] ?? 'audio/mpeg'), (string) ($episode['audio_length'] ?? ''));
+            foreach ($repository->enclosures($series, $episode, $baseUrl) as $enclosure) {
+                $this->link($xml, $enclosure['url'], 'enclosure', $enclosure['mime_type'], (string) $enclosure['length']);
             }
             $xml->startElement('content');
             $xml->writeAttribute('type', 'html');
@@ -231,15 +230,20 @@ final class FeedBuilder
                 'summary' => (string) ($episode['description'] ?? $this->markdown->text((string) $episode['body'])),
                 'date_published' => $episode['date']->format(DateTimeInterface::ATOM),
             ];
-            if ($audio = $repository->mediaUrl($episode, 'audio', $baseUrl)) {
-                $attachment = ['url' => $audio, 'mime_type' => (string) ($episode['audio_type'] ?? 'audio/mpeg')];
-                if (isset($episode['audio_length'])) {
-                    $attachment['size_in_bytes'] = (int) $episode['audio_length'];
-                }
+            $attachments = [];
+            foreach ($repository->enclosures($series, $episode, $baseUrl) as $enclosure) {
+                $attachment = [
+                    'url' => $enclosure['url'],
+                    'mime_type' => $enclosure['mime_type'],
+                    'size_in_bytes' => $enclosure['length'],
+                ];
                 if (isset($episode['duration'])) {
                     $attachment['duration_in_seconds'] = $this->durationSeconds((string) $episode['duration']);
                 }
-                $item['attachments'] = [$attachment];
+                $attachments[] = $attachment;
+            }
+            if ($attachments !== []) {
+                $item['attachments'] = $attachments;
             }
             $items[] = $item;
         }
@@ -289,6 +293,36 @@ final class FeedBuilder
             $xml->writeAttribute('length', $length);
         }
         $xml->endElement();
+    }
+
+    /** @param array{url: string, mime_type: string, length: int} $enclosure */
+    private function writeEnclosure(XMLWriter $xml, array $enclosure): void
+    {
+        $xml->startElement('enclosure');
+        $xml->writeAttribute('url', $enclosure['url']);
+        $xml->writeAttribute('length', (string) $enclosure['length']);
+        $xml->writeAttribute('type', $enclosure['mime_type']);
+        $xml->endElement();
+    }
+
+    /**
+     * @param list<array{format: string, url: string, mime_type: string, length: int, default: bool}> $enclosures
+     */
+    private function writeAlternateEnclosures(XMLWriter $xml, array $enclosures, string $selectedFormat): void
+    {
+        foreach ($enclosures as $enclosure) {
+            $xml->startElement('podcast:alternateEnclosure');
+            $xml->writeAttribute('type', $enclosure['mime_type']);
+            $xml->writeAttribute('length', (string) $enclosure['length']);
+            $xml->writeAttribute('title', strtoupper($enclosure['format']));
+            if ($enclosure['format'] === $selectedFormat) {
+                $xml->writeAttribute('default', 'true');
+            }
+            $xml->startElement('podcast:source');
+            $xml->writeAttribute('uri', $enclosure['url']);
+            $xml->endElement();
+            $xml->endElement();
+        }
     }
 
     private function url(string $baseUrl, string $path): string

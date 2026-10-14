@@ -69,6 +69,10 @@ final class Application
             $this->html('page', ['page' => $this->repository->page($match[1])]);
             return;
         }
+        if (preg_match('#^/([a-z0-9]+(?:-[a-z0-9]+)*)/feed\.([a-z0-9]+)\.xml$#', $path, $match) === 1) {
+            $this->feed($match[1], 'xml', $match[2]);
+            return;
+        }
         if (preg_match('#^/([a-z0-9]+(?:-[a-z0-9]+)*)/feed\.(xml|atom|json)$#', $path, $match) === 1) {
             $this->feed($match[1], $match[2]);
             return;
@@ -92,13 +96,13 @@ final class Application
         throw new ContentException('Route not found.');
     }
 
-    private function feed(string $slug, string $format): void
+    private function feed(string $slug, string $syndicationFormat, ?string $mediaFormat = null): void
     {
         $series = $this->repository->seriesBySlug($slug);
         $episodes = $this->repository->episodes($slug);
         $baseUrl = $this->baseUrl();
-        [$body, $type] = match ($format) {
-            'xml' => [$this->feeds->rss($series, $episodes, $baseUrl, $this->repository), 'application/rss+xml; charset=utf-8'],
+        [$body, $type] = match ($syndicationFormat) {
+            'xml' => [$this->feeds->rss($series, $episodes, $baseUrl, $this->repository, $mediaFormat), 'application/rss+xml; charset=utf-8'],
             'atom' => [$this->feeds->atom($series, $episodes, $baseUrl, $this->repository), 'application/atom+xml; charset=utf-8'],
             'json' => [$this->feeds->json($series, $episodes, $baseUrl, $this->repository), 'application/feed+json; charset=utf-8'],
         };

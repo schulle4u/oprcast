@@ -15,6 +15,7 @@ final class ContentRepository
         private readonly string $root,
         private readonly FrontMatter $frontMatter,
         private readonly Markdown $markdown,
+        private readonly array $mediaFormats,
         ?string $cdnUrl = null,
     ) {
         $cdnUrl = is_string($cdnUrl) ? trim($cdnUrl) : null;
@@ -167,6 +168,108 @@ final class ContentRepository
     public function usesCdnForRelativeMedia(): bool
     {
         return $this->cdnUrl !== null;
+    }
+
+    /** @return list<string> */
+    public function seriesFormats(array $series): array
+    {
+        $formats = $series['formats'] ?? [];
+        if (!is_array($formats)) {
+            throw new ContentException("{$series['source']}: formats must be a list.");
+        }
+        if ($formats === []) {
+            throw new ContentException("{$series['source']}: formats must contain at least one media format.");
+        }
+        if (count($formats) !== count(array_unique($formats, SORT_REGULAR))) {
+            throw new ContentException("{$series['source']}: formats must not contain duplicates.");
+        }
+        foreach ($formats as $format) {
+            if (!is_string($format) || preg_match('/^[a-z0-9]+$/', $format) !== 1) {
+                throw new ContentException("{$series['source']}: every media format must be a lowercase name.");
+            }
+            $definition = $this->mediaFormats[$format] ?? null;
+            if (!is_array($definition) || !isset($definition['extension'], $definition['mime_type'])) {
+                throw new ContentException("{$series['source']}: unknown media format '{$format}'.");
+            }
+        }
+        return array_values($formats);
+    }
+
+    public function defaultFormat(array $series): string
+    {
+        $format = $series['default_format'] ?? null;
+        if (!is_string($format) || $format === '') {
+            throw new ContentException("{$series['source']}: missing required field 'default_format'.");
+        }
+        if (!in_array($format, $this->seriesFormats($series), true)) {
+            throw new ContentException("{$series['source']}: default_format must be included in formats.");
+        }
+        return $format;
+    }
+
+    /**
+     * @return list<array{format: string, url: string, mime_type: string, length: int, default: bool}>
+     */
+    public function enclosures(array $series, array $episode, string $baseUrl): array
+    {
+        $stem = $episode['audio'] ?? null;
+        if (!is_string($stem) || trim($stem) === '') {
+            throw new ContentException("{$episode['source']}: missing required field 'audio'.");
+        }
+
+        $default = $this->defaultFormat($series);
+        $enclosures = [];
+        foreach ($this->seriesFormats($series) as $format) {
+            $definition = $this->mediaFormats[$format] ?? null;
+            if (!is_array($definition) || !isset($definition['extension'], $definition['mime_type'])) {
+                throw new ContentException("{$series['source']}: unknown media format '{$format}'.");
+            }
+            $media = $stem . (string) $definition['extension'];
+            $item = array_replace($episode, ['audio_file' => $media]);
+            $url = (string) $this->mediaUrl($item, 'audio_file', $baseUrl);
+            $length = $this->mediaLength($episode, $media, $format);
+            $enclosures[] = [
+                'format' => $format,
+                'url' => $url,
+                'mime_type' => (string) $definition['mime_type'],
+                'length' => $length,
+                'default' => $format === $default,
+            ];
+        }
+        return $enclosures;
+    }
+
+    /** @return array{format: string, url: string, mime_type: string, length: int, default: bool} */
+    public function enclosure(array $series, array $episode, string $format, string $baseUrl): array
+    {
+        foreach ($this->enclosures($series, $episode, $baseUrl) as $enclosure) {
+            if ($enclosure['format'] === $format) {
+                return $enclosure;
+            }
+        }
+        throw new ContentException("{$series['source']}: media format '{$format}' is not enabled for this podcast.");
+    }
+
+    private function mediaLength(array $episode, string $media, string $format): int
+    {
+        if (filter_var($media, FILTER_VALIDATE_URL) === false) {
+            $path = dirname((string) $episode['source']) . '/' . ltrim($media, '/');
+            if (is_file($path)) {
+                $length = filesize($path);
+                if ($length !== false && $length > 0) {
+                    return $length;
+                }
+            }
+            if ($this->cdnUrl === null) {
+                throw new ContentException("{$episode['source']}: local audio file does not exist or is empty: {$media}.");
+            }
+        }
+        $field = 'audio_length_' . $format;
+        $length = $episode[$field] ?? null;
+        if (!is_int($length) || $length < 1) {
+            throw new ContentException("{$episode['source']}: missing positive '{$field}' for media that is not available locally.");
+        }
+        return $length;
     }
 
     /** @return array<string, mixed> */

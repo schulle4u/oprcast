@@ -21,8 +21,14 @@ final class Validator
 
         foreach ($allSeries as $series) {
             $slugs = [];
-            $this->required($series, ['title', 'description', 'language', 'author', 'image', 'category', 'explicit'], $errors);
+            $this->required($series, ['title', 'description', 'language', 'author', 'image', 'category', 'explicit', 'formats', 'default_format'], $errors);
             $this->localFile($repository, $series, 'image', $errors);
+            try {
+                $repository->seriesFormats($series);
+                $repository->defaultFormat($series);
+            } catch (ContentException $exception) {
+                $errors[] = $exception->getMessage();
+            }
             if (isset($series['type']) && !in_array($series['type'], ['episodic', 'serial'], true)) {
                 $errors[] = "{$series['source']}: type must be episodic or serial.";
             }
@@ -34,8 +40,7 @@ final class Validator
                 continue;
             }
             foreach ($episodes as $episode) {
-                $this->required($episode, ['title', 'date', 'guid', 'audio', 'audio_type', 'audio_length', 'duration', 'episode_type'], $errors);
-                $this->localFile($repository, $episode, 'audio', $errors);
+                $this->required($episode, ['title', 'date', 'guid', 'audio', 'duration', 'episode_type'], $errors);
                 if (isset($slugs[$episode['slug']])) {
                     $errors[] = "{$episode['source']}: duplicate episode slug also used in {$slugs[$episode['slug']]}.";
                 }
@@ -47,18 +52,19 @@ final class Validator
                     }
                     $guids[$guid] = $episode['source'];
                 }
-                if (isset($episode['audio'])) {
-                    $audio = (string) $episode['audio'];
-                    if (isset($enclosures[$audio])) {
-                        $errors[] = "{$episode['source']}: duplicate audio URL/path also used in {$enclosures[$audio]}.";
+                try {
+                    foreach ($repository->enclosures($series, $episode, 'https://validator.invalid') as $enclosure) {
+                        $audio = $enclosure['url'];
+                        if (isset($enclosures[$audio])) {
+                            $errors[] = "{$episode['source']}: duplicate audio URL/path also used in {$enclosures[$audio]}.";
+                        }
+                        $enclosures[$audio] = $episode['source'];
                     }
-                    $enclosures[$audio] = $episode['source'];
+                } catch (ContentException $exception) {
+                    $errors[] = $exception->getMessage();
                 }
                 if (isset($episode['episode_type']) && !in_array($episode['episode_type'], ['full', 'trailer', 'bonus'], true)) {
                     $errors[] = "{$episode['source']}: episode_type must be full, trailer, or bonus.";
-                }
-                if (isset($episode['audio_length']) && (!is_int($episode['audio_length']) || $episode['audio_length'] < 1)) {
-                    $errors[] = "{$episode['source']}: audio_length must be a positive integer.";
                 }
                 if (isset($episode['duration']) && preg_match('/^(?:\d+:)?[0-5]?\d:[0-5]\d$/', (string) $episode['duration']) !== 1) {
                     $errors[] = "{$episode['source']}: duration must use MM:SS or HH:MM:SS.";

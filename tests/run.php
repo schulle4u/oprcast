@@ -50,6 +50,7 @@ $fixture = sys_get_temp_dir() . '/oprcast-test-' . bin2hex(random_bytes(4));
 mkdir($fixture . '/test-cast', 0777, true);
 file_put_contents($fixture . '/test-cast/cover.jpg', 'fixture');
 file_put_contents($fixture . '/test-cast/episode.mp3', 'fixture-audio');
+file_put_contents($fixture . '/test-cast/episode.m4a', 'fixture-audio-m4a');
 file_put_contents($fixture . '/test-cast/index.md', <<<'MD'
 ---
 title: Test Cast
@@ -60,6 +61,10 @@ image: cover.jpg
 category: Technology
 explicit: false
 type: episodic
+formats:
+  - mp3
+  - m4a
+default_format: mp3
 ---
 About this podcast.
 MD);
@@ -68,9 +73,7 @@ file_put_contents($fixture . '/test-cast/2025-01-01-first.md', <<<'MD'
 title: First episode
 date: 2025-01-01T10:00:00+00:00
 guid: urn:uuid:420111d4-ff3a-425d-a921-2ab9a9054dd6
-audio: episode.mp3
-audio_type: audio/mpeg
-audio_length: 13
+audio: episode
 duration: 01:02
 episode: 1
 episode_type: full
@@ -84,7 +87,11 @@ Episode notes.
 - 00:30 Topic
 MD);
 
-$repository = new ContentRepository($fixture, $frontMatter, $markdown);
+$mediaFormats = [
+    'mp3' => ['extension' => '.mp3', 'mime_type' => 'audio/mpeg'],
+    'm4a' => ['extension' => '.m4a', 'mime_type' => 'audio/x-m4a'],
+];
+$repository = new ContentRepository($fixture, $frontMatter, $markdown, $mediaFormats);
 $series = $repository->seriesBySlug('test-cast');
 $episodes = $repository->episodes('test-cast');
 $test($series['title'] === 'Test Cast', 'Repository loads a series.');
@@ -92,44 +99,59 @@ $test(count($episodes) === 1 && $episodes[0]['date'] instanceof DateTimeImmutabl
 $allEpisodes = $repository->allEpisodes();
 $test(count($allEpisodes) === 1 && $allEpisodes[0]['series_title'] === 'Test Cast', 'Repository loads episodes across all series.');
 $test((new Validator())->validate($repository) === [], 'Validator accepts a complete fixture.');
-$test(
-    $repository->mediaUrl($episodes[0], 'audio', 'https://example.test') === 'https://example.test/content/test-cast/episode.mp3',
-    'Repository resolves relative media against the local content directory.',
-);
+$episodeEnclosures = $repository->enclosures($series, $episodes[0], 'https://example.test');
+$test(count($episodeEnclosures) === 2, 'Repository resolves every configured media format.');
+$test($episodeEnclosures[0]['url'] === 'https://example.test/content/test-cast/episode.mp3', 'Repository builds media URLs from the audio stem.');
+$test($episodeEnclosures[0]['length'] === 13, 'Repository reads local media lengths.');
+$test($repository->defaultFormat($series) === 'mp3', 'Repository resolves the default media format.');
 
-$cdnRepository = new ContentRepository($fixture, $frontMatter, $markdown, 'https://cdn.podcast.org/');
+$cdnRepository = new ContentRepository($fixture, $frontMatter, $markdown, $mediaFormats, 'https://cdn.podcast.org/');
 $cdnEpisode = $episodes[0];
-$cdnEpisode['audio'] = 'mypodcast/first episode.mp3';
+$cdnEpisode['audio'] = 'mypodcast/first episode';
+$cdnEpisode['audio_length_mp3'] = 123;
+$cdnEpisode['audio_length_m4a'] = 124;
 $test(
-    $cdnRepository->mediaUrl($cdnEpisode, 'audio', 'https://example.test') === 'https://cdn.podcast.org/mypodcast/first%20episode.mp3',
-    'Repository resolves relative media against the configured CDN URL.',
+    $cdnRepository->enclosure($series, $cdnEpisode, 'mp3', 'https://example.test')['url'] === 'https://cdn.podcast.org/mypodcast/first%20episode.mp3',
+    'Repository resolves generated media paths against the configured CDN URL.',
 );
-$cdnEpisode['audio'] = 'https://media.example.org/episode.mp3';
+$cdnEpisode['audio'] = 'https://media.example.org/episode';
 $test(
-    $cdnRepository->mediaUrl($cdnEpisode, 'audio', 'https://example.test') === 'https://media.example.org/episode.mp3',
-    'Repository preserves absolute media URLs when a CDN URL is configured.',
+    $cdnRepository->enclosure($series, $cdnEpisode, 'm4a', 'https://example.test')['url'] === 'https://media.example.org/episode.m4a',
+    'Repository preserves generated absolute media URLs when a CDN URL is configured.',
 );
 
 unlink($fixture . '/test-cast/episode.mp3');
-$test((new Validator())->validate($cdnRepository) === [], 'Validator does not require CDN-backed media to exist locally.');
+$missingMediaErrors = (new Validator())->validate($repository);
+$test(count(array_filter($missingMediaErrors, static fn (string $error): bool => str_contains($error, 'episode.mp3'))) === 1, 'Validator rejects a missing local format.');
+$cdnFixtureSource = file_get_contents($fixture . '/test-cast/2025-01-01-first.md');
+file_put_contents($fixture . '/test-cast/2025-01-01-first.md', str_replace('audio: episode', "audio: episode\naudio_length_mp3: 13", (string) $cdnFixtureSource));
+$test((new Validator())->validate($cdnRepository) === [], 'Validator accepts explicit lengths for CDN media not available locally.');
+file_put_contents($fixture . '/test-cast/2025-01-01-first.md', $cdnFixtureSource);
 file_put_contents($fixture . '/test-cast/episode.mp3', 'fixture-audio');
 
 if (class_exists(XMLWriter::class)) {
     $config = ['language' => 'en-US', 'feed_limit' => 100];
     $feeds = new FeedBuilder($config, $markdown);
     $rss = $feeds->rss($series, $episodes, 'https://example.test', $repository);
+    $m4aRss = $feeds->rss($series, $episodes, 'https://example.test', $repository, 'm4a');
     $metaRss = $feeds->metaRss([$series], $allEpisodes, 'https://example.test', $repository);
     $atom = $feeds->atom($series, $episodes, 'https://example.test', $repository);
     $json = json_decode($feeds->json($series, $episodes, 'https://example.test', $repository), true, flags: JSON_THROW_ON_ERROR);
     $cdnRss = $feeds->rss($series, $episodes, 'https://example.test', $cdnRepository);
     $chaptersJson = json_decode($feeds->chapters($episodes[0]), true, flags: JSON_THROW_ON_ERROR);
     $test(simplexml_load_string($rss) !== false, 'RSS is well-formed XML.');
+    $test(str_contains($rss, '<enclosure url="https://example.test/content/test-cast/episode.mp3" length="13" type="audio/mpeg"'), 'Default RSS uses the default enclosure.');
+    $test(substr_count($rss, '<podcast:alternateEnclosure') === 2, 'RSS exposes all formats as alternate enclosures.');
+    $test(str_contains($m4aRss, '<enclosure url="https://example.test/content/test-cast/episode.m4a"'), 'Format-specific RSS selects its enclosure.');
+    $test(str_contains($m4aRss, 'href="https://example.test/test-cast/feed.m4a.xml"'), 'Format-specific RSS has its own self URL.');
     $test(simplexml_load_string($metaRss) !== false, 'Meta RSS is well-formed XML.');
     $test(str_contains($metaRss, '<source url="https://example.test/test-cast/feed.xml">Test Cast</source>'), 'Meta RSS identifies the source series.');
     $test(simplexml_load_string($atom) !== false, 'Atom is well-formed XML.');
     $test(str_contains($rss, '<podcast:chapters'), 'RSS links Podcasting 2.0 chapters.');
-    $test(str_contains($cdnRss, 'url="https://cdn.podcast.org/episode.mp3"'), 'RSS uses the configured CDN URL for relative enclosures.');
+    $test(str_contains($cdnRss, 'url="https://cdn.podcast.org/episode.mp3"'), 'RSS uses the configured CDN URL for generated relative enclosures.');
     $test($json['version'] === 'https://jsonfeed.org/version/1.1', 'JSON Feed uses version 1.1.');
+    $test(count($json['items'][0]['attachments']) === 2, 'JSON Feed includes every media format.');
+    $test(substr_count($atom, 'rel="enclosure"') === 2, 'Atom includes every media format.');
     $test($chaptersJson['chapters'][1]['startTime'] === 30, 'Chapter feed contains timestamps.');
 
     $appConfig = [
@@ -160,12 +182,20 @@ if (class_exists(XMLWriter::class)) {
     $test(str_contains($episodePage, '<html lang="en">'), 'Application uses the localized HTML language code.');
     $test(str_contains($episodePage, 'January 1, 2025 at 10:00 am'), 'Application displays localized episode dates and times.');
     $test(str_contains($episodePage, 'Your browser does not support the audio player.'), 'Application renders localized layout strings.');
+    $test(substr_count($episodePage, '<source src=') === 2, 'Episode pages offer every media format to the browser.');
+    $test(str_contains($episodePage, '>MP3</a>') && str_contains($episodePage, '>M4A</a>'), 'Episode pages link every format for download.');
 
     $_SERVER['REQUEST_URI'] = '/test-cast/feed.xml';
     ob_start();
     $application->run();
     $routedRss = (string) ob_get_clean();
     $test(str_contains($routedRss, '<title>Test Cast</title>'), 'Application routes RSS feeds.');
+
+    $_SERVER['REQUEST_URI'] = '/test-cast/feed.m4a.xml';
+    ob_start();
+    $application->run();
+    $routedM4aRss = (string) ob_get_clean();
+    $test(str_contains($routedM4aRss, 'episode.m4a'), 'Application routes format-specific RSS feeds.');
 
     $_SERVER['REQUEST_URI'] = '/feed.xml';
     ob_start();

@@ -13,6 +13,9 @@ $documentTitle = isset($title) ? $title . ' – ' . $siteTitle : (($episode['tit
     <link rel="stylesheet" href="<?php echo htmlspecialchars($baseUrl, ENT_QUOTES, 'UTF-8'); ?>/assets/theme.css">
 <?php if (isset($series)): ?>
     <link rel="alternate" type="application/rss+xml" title="<?php echo htmlspecialchars($series['title'], ENT_QUOTES, 'UTF-8'); ?>" href="<?php echo htmlspecialchars($baseUrl . '/' . $series['slug'] . '/feed.xml', ENT_QUOTES, 'UTF-8'); ?>">
+<?php foreach ($repository->seriesFormats($series) as $mediaFormat): ?>
+    <link rel="alternate" type="application/rss+xml" title="<?php echo htmlspecialchars($series['title'] . ' (' . strtoupper($mediaFormat) . ')', ENT_QUOTES, 'UTF-8'); ?>" href="<?php echo htmlspecialchars($baseUrl . '/' . $series['slug'] . '/feed.' . $mediaFormat . '.xml', ENT_QUOTES, 'UTF-8'); ?>">
+<?php endforeach; ?>
     <link rel="alternate" type="application/feed+json" title="<?php echo htmlspecialchars($series['title'], ENT_QUOTES, 'UTF-8'); ?>" href="<?php echo htmlspecialchars($baseUrl . '/' . $series['slug'] . '/feed.json', ENT_QUOTES, 'UTF-8'); ?>">
 <?php else: ?>
     <link rel="alternate" type="application/rss+xml" title="<?php echo htmlspecialchars($siteTitle, ENT_QUOTES, 'UTF-8'); ?>" href="<?php echo htmlspecialchars($baseUrl . '/feed.xml', ENT_QUOTES, 'UTF-8'); ?>">

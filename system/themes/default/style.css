@@ -36,6 +36,7 @@ h3 { margin-block: .2rem; font-size: 1.25rem; }
 .prose { max-width: 46rem; }
 .prose img { max-width: 100%; height: auto; }
 audio { width: min(100%, 46rem); margin-block: 1.5rem; }
+.audio-downloads { margin-top: -1rem; }
 code, pre { font-family: ui-monospace, monospace; }
 pre { overflow-x: auto; padding: 1rem; background: var(--surface); border: 1px solid var(--border); }
 .empty-state { padding: clamp(1.5rem, 5vw, 3rem); background: var(--surface); border: 1px dashed var(--border); border-radius: .8rem; }

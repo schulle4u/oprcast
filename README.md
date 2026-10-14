@@ -33,6 +33,11 @@ image: cover.jpg
 category: Technology
 explicit: false
 type: episodic
+formats:
+  - mp3
+  - m4a
+  - ogg
+default_format: mp3
 ---
 
 Longer description of the podcast.
@@ -45,9 +50,7 @@ Create episodes as `content/my-podcast/YYYY-MM-DD-slug.md`:
 title: My first episode
 date: 2026-10-13T18:00:00+02:00
 guid: urn:uuid:replace-with-a-permanent-uuid
-audio: first-episode.mp3
-audio_type: audio/mpeg
-audio_length: 12345678
+audio: first-episode
 duration: 42:17
 episode: 1
 episode_type: full
@@ -63,15 +66,24 @@ Episode notes with **basic Markdown**.
 - 39:40 Closing
 ```
 
-Put local cover and audio files next to the Markdown files. Absolute HTTPS URLs are also supported. A GUID must never change after publication.
+Put the cover and one audio file per configured format next to the Markdown files. In this example, the audio stem creates `first-episode.mp3`, `first-episode.m4a`, and `first-episode.ogg`. File sizes are read automatically. Format extensions and MIME types are configured centrally in `system/config/media.php`. A GUID must never change after publication.
+
+If an audio stem is an absolute HTTP(S) URL, or a relative path served only by the configured CDN, provide the byte length for every file that is not also available locally:
+
+```markdown
+audio: https://media.example.org/first-episode
+audio_length_mp3: 12345678
+audio_length_m4a: 10987654
+audio_length_ogg: 9876543
+```
 
 To serve media from a CDN, set `OPRCAST_CDN_URL` (or `cdn_url` in `system/config/site.php`), for example `https://cdn.podcast.org/`. Relative media paths are then resolved below that URL:
 
 ```markdown
-audio: mypodcast/first-episode.mp3
+audio: mypodcast/first-episode
 ```
 
-This produces `https://cdn.podcast.org/mypodcast/first-episode.mp3`. The setting applies to relative audio and image paths; absolute HTTP(S) URLs remain unchanged.
+For the MP3 format this produces `https://cdn.podcast.org/mypodcast/first-episode.mp3`. The setting applies to relative audio stems and image paths; absolute HTTP(S) URLs remain unchanged apart from the configured audio extension being appended to the stem.
 
 Static pages such as an imprint can be placed in `content/pages/imprint.md`; their front matter only needs a `title`.
 
@@ -99,6 +111,7 @@ The validator reports missing metadata, missing local media, duplicate GUIDs or 
 - `/{series}/` – series and episodes
 - `/{series}/{episode}/` – episode page
 - `/{series}/feed.xml` – podcast RSS feed
+- `/{series}/feed.{media}.xml` – RSS feed for one configured media format, for example `feed.mp3.xml`
 - `/{series}/feed.atom` – Atom feed
 - `/{series}/feed.json` – JSON Feed
 - `/{series}/{episode}/chapters.json` – Podcasting 2.0 chapters
