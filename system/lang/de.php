@@ -9,7 +9,7 @@ return [
     'episode_datetime' => '{date}, {time} Uhr',
     'site_description' => 'Podcasts, unabhängig veröffentlicht.',
     'skip_to_content' => 'Zum Inhalt springen',
-    'main_navigation' => 'Hauptnavigation',
+    'main_navigation' => 'Haupt',
     'published_with' => 'Veröffentlicht mit OPRCast.',
     'publisher_name' => 'Flatfile Podcast Publisher',
     'no_podcasts_title' => 'Noch keine Podcasts veröffentlicht',

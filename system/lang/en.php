@@ -9,7 +9,7 @@ return [
     'episode_datetime' => '{date} at {time}',
     'site_description' => 'Podcasts, published independently.',
     'skip_to_content' => 'Skip to content',
-    'main_navigation' => 'Main navigation',
+    'main_navigation' => 'Main',
     'published_with' => 'Published with OPRCast.',
     'publisher_name' => 'Flat-file podcast publisher',
     'no_podcasts_title' => 'No podcasts published yet',
