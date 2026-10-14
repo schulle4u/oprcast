@@ -10,7 +10,7 @@ return [
     'site_description' => 'Podcasts, published independently.',
     'skip_to_content' => 'Skip to content',
     'main_navigation' => 'Main',
-    'published_with' => 'Published with OPRCast.',
+    'published_with' => 'Published with OPRCast',
     'publisher_name' => 'Flat-file podcast publisher',
     'no_podcasts_title' => 'No podcasts published yet',
     'no_podcasts_help' => 'Create a folder containing an <code>index.md</code> file below <code>content/</code> for each series.',
