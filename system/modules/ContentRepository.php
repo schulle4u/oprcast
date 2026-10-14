@@ -77,6 +77,20 @@ final class ContentRepository
         return $episodes;
     }
 
+    /** @return list<array<string, mixed>> */
+    public function allEpisodes(bool $includeFuture = false): array
+    {
+        $episodes = [];
+        foreach ($this->series() as $series) {
+            foreach ($this->episodes((string) $series['slug'], $includeFuture) as $episode) {
+                $episode['series_title'] = $series['title'];
+                $episodes[] = $episode;
+            }
+        }
+        usort($episodes, static fn (array $a, array $b): int => $b['date'] <=> $a['date']);
+        return $episodes;
+    }
+
     /** @return array<string, mixed> */
     public function episode(string $seriesSlug, string $episodeSlug): array
     {

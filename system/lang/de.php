@@ -18,6 +18,7 @@ return [
     'podcast' => 'Podcast',
     'cover_alt' => 'Cover von {title}',
     'episodes' => 'Episoden',
+    'all_episodes' => 'Alle Episoden',
     'no_episodes' => 'Noch keine Episoden veröffentlicht.',
     'breadcrumbs' => 'Brotkrumen',
     'audio_fallback' => 'Dein Browser unterstützt den Audioplayer nicht.',

@@ -101,6 +101,88 @@ final class FeedBuilder
         return $xml->outputMemory();
     }
 
+    /**
+     * Builds one RSS feed containing the latest episodes from every series.
+     *
+     * @param list<array<string, mixed>> $seriesList
+     * @param list<array<string, mixed>> $episodes
+     */
+    public function metaRss(array $seriesList, array $episodes, string $baseUrl, ContentRepository $repository): string
+    {
+        $xml = $this->writer();
+        $xml->startElement('rss');
+        $xml->writeAttribute('version', '2.0');
+        $xml->writeAttribute('xmlns:itunes', 'http://www.itunes.com/dtds/podcast-1.0.dtd');
+        $xml->writeAttribute('xmlns:content', 'http://purl.org/rss/1.0/modules/content/');
+        $xml->writeAttribute('xmlns:atom', 'http://www.w3.org/2005/Atom');
+        $xml->writeAttribute('xmlns:podcast', 'https://podcastindex.org/namespace/1.0');
+        $xml->startElement('channel');
+
+        $homeUrl = $this->url($baseUrl, '');
+        $feedUrl = $this->url($baseUrl, 'feed.xml');
+        $this->element($xml, 'title', (string) ($this->config['title'] ?? 'OPRCast'));
+        $this->element($xml, 'link', $homeUrl);
+        $this->element($xml, 'description', (string) ($this->config['site_description'] ?? ''));
+        $this->element($xml, 'language', (string) ($this->config['language_code'] ?? $this->config['language'] ?? 'en'));
+        $this->element($xml, 'lastBuildDate', $this->latestModified($seriesList, $episodes)->format(DateTimeInterface::RFC2822));
+        $xml->startElement('atom:link');
+        $xml->writeAttribute('href', $feedUrl);
+        $xml->writeAttribute('rel', 'self');
+        $xml->writeAttribute('type', 'application/rss+xml');
+        $xml->endElement();
+
+        $seriesBySlug = [];
+        foreach ($seriesList as $series) {
+            $seriesBySlug[(string) $series['slug']] = $series;
+        }
+        foreach (array_slice($episodes, 0, (int) $this->config['feed_limit']) as $episode) {
+            $seriesSlug = (string) $episode['series_slug'];
+            $series = $seriesBySlug[$seriesSlug] ?? [];
+            $episodeUrl = $this->url($baseUrl, $seriesSlug . '/' . $episode['slug'] . '/');
+            $xml->startElement('item');
+            $this->element($xml, 'title', (string) $episode['title']);
+            $this->element($xml, 'link', $episodeUrl);
+            $xml->startElement('guid');
+            $xml->writeAttribute('isPermaLink', 'false');
+            $xml->text((string) ($episode['guid'] ?? $episodeUrl));
+            $xml->endElement();
+            $this->element($xml, 'pubDate', $episode['date']->format(DateTimeInterface::RFC2822));
+            $this->element($xml, 'description', (string) ($episode['description'] ?? $this->markdown->text((string) $episode['body'])));
+            $xml->startElement('content:encoded');
+            $xml->writeCdata((string) $episode['html']);
+            $xml->endElement();
+            $xml->startElement('source');
+            $xml->writeAttribute('url', $this->url($baseUrl, $seriesSlug . '/feed.xml'));
+            $xml->text((string) ($series['title'] ?? $episode['series_title'] ?? $seriesSlug));
+            $xml->endElement();
+            $this->element($xml, 'itunes:author', (string) ($series['author'] ?? $series['title'] ?? ''));
+            if ($audio = $repository->mediaUrl($episode, 'audio', $baseUrl)) {
+                $xml->startElement('enclosure');
+                $xml->writeAttribute('url', $audio);
+                $xml->writeAttribute('length', (string) ($episode['audio_length'] ?? 0));
+                $xml->writeAttribute('type', (string) ($episode['audio_type'] ?? 'audio/mpeg'));
+                $xml->endElement();
+            }
+            foreach (['duration', 'episode', 'season'] as $tag) {
+                if (isset($episode[$tag])) {
+                    $this->element($xml, 'itunes:' . $tag, (string) $episode[$tag]);
+                }
+            }
+            $this->element($xml, 'itunes:episodeType', (string) ($episode['episode_type'] ?? 'full'));
+            $this->element($xml, 'itunes:explicit', $this->bool($episode['explicit'] ?? $series['explicit'] ?? false));
+            if ($episode['chapters'] !== []) {
+                $xml->startElement('podcast:chapters');
+                $xml->writeAttribute('url', $this->url($baseUrl, $seriesSlug . '/' . $episode['slug'] . '/chapters.json'));
+                $xml->writeAttribute('type', 'application/json+chapters');
+                $xml->endElement();
+            }
+            $xml->endElement();
+        }
+        $xml->endElement();
+        $xml->endElement();
+        return $xml->outputMemory();
+    }
+
     public function atom(array $series, array $episodes, string $baseUrl, ContentRepository $repository): string
     {
         $xml = $this->writer();
@@ -224,6 +306,19 @@ final class FeedBuilder
         $modified = (int) $series['modified'];
         foreach ($episodes as $episode) {
             $modified = max($modified, (int) $episode['modified']);
+        }
+        return new \DateTimeImmutable('@' . $modified);
+    }
+
+    /**
+     * @param list<array<string, mixed>> $seriesList
+     * @param list<array<string, mixed>> $episodes
+     */
+    private function latestModified(array $seriesList, array $episodes): \DateTimeImmutable
+    {
+        $modified = 0;
+        foreach (array_merge($seriesList, $episodes) as $item) {
+            $modified = max($modified, (int) ($item['modified'] ?? 0));
         }
         return new \DateTimeImmutable('@' . $modified);
     }

@@ -21,5 +21,15 @@
 <?php endforeach; ?>
     </div>
 </section>
+<?php if ($episodes !== []): ?>
+<section aria-labelledby="episodes-title">
+    <h2 id="episodes-title"><?php echo htmlspecialchars($localization->get('all_episodes'), ENT_QUOTES, 'UTF-8'); ?></h2>
+    <ol class="episode-list">
+<?php foreach ($episodes as $item): ?>
+        <li><article><p class="meta"><time datetime="<?php echo $item['date']->format('c'); ?>"><?php echo htmlspecialchars($localization->formatEpisodeDate($item['date']), ENT_QUOTES, 'UTF-8'); ?></time> · <a href="<?php echo htmlspecialchars($baseUrl . '/' . $item['series_slug'] . '/', ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars((string) $item['series_title'], ENT_QUOTES, 'UTF-8'); ?></a></p><h3><a href="<?php echo htmlspecialchars($baseUrl . '/' . $item['series_slug'] . '/' . $item['slug'] . '/', ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($item['title'], ENT_QUOTES, 'UTF-8'); ?></a></h3><p><?php echo htmlspecialchars((string) ($item['description'] ?? $markdown->text($item['body'])), ENT_QUOTES, 'UTF-8'); ?></p></article></li>
+<?php endforeach; ?>
+    </ol>
+</section>
+<?php endif; ?>
 <?php endif; ?>
 

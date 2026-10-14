@@ -44,7 +44,20 @@ final class Application
     private function dispatch(string $path): void
     {
         if ($path === '/') {
-            $this->html('home', ['seriesList' => $this->repository->series()]);
+            $this->html('home', [
+                'seriesList' => $this->repository->series(),
+                'episodes' => $this->repository->allEpisodes(),
+            ]);
+            return;
+        }
+        if ($path === '/feed.xml') {
+            $series = $this->repository->series();
+            $episodes = $this->repository->allEpisodes();
+            $this->conditional(
+                $this->feeds->metaRss($series, $episodes, $this->baseUrl(), $this->repository),
+                'application/rss+xml; charset=utf-8',
+                $this->latestModified($series, $episodes),
+            );
             return;
         }
         if ($path === '/assets/theme.css') {
@@ -113,6 +126,19 @@ final class Application
         $this->send((string) ob_get_clean(), 'text/html; charset=utf-8', $status, [
             'Content-Security-Policy' => "default-src 'self'; img-src 'self' https: data:; media-src 'self' https:; style-src 'self'; base-uri 'self'; frame-ancestors 'self'",
         ]);
+    }
+
+    /**
+     * @param list<array<string, mixed>> $series
+     * @param list<array<string, mixed>> $episodes
+     */
+    private function latestModified(array $series, array $episodes): int
+    {
+        $modified = 0;
+        foreach (array_merge($series, $episodes) as $item) {
+            $modified = max($modified, (int) ($item['modified'] ?? 0));
+        }
+        return $modified;
     }
 
     private function conditional(string $body, string $type, int $modified): void

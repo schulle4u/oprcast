@@ -14,6 +14,8 @@ $documentTitle = isset($title) ? $title . ' – ' . $siteTitle : (($episode['tit
 <?php if (isset($series)): ?>
     <link rel="alternate" type="application/rss+xml" title="<?php echo htmlspecialchars($series['title'], ENT_QUOTES, 'UTF-8'); ?>" href="<?php echo htmlspecialchars($baseUrl . '/' . $series['slug'] . '/feed.xml', ENT_QUOTES, 'UTF-8'); ?>">
     <link rel="alternate" type="application/feed+json" title="<?php echo htmlspecialchars($series['title'], ENT_QUOTES, 'UTF-8'); ?>" href="<?php echo htmlspecialchars($baseUrl . '/' . $series['slug'] . '/feed.json', ENT_QUOTES, 'UTF-8'); ?>">
+<?php else: ?>
+    <link rel="alternate" type="application/rss+xml" title="<?php echo htmlspecialchars($siteTitle, ENT_QUOTES, 'UTF-8'); ?>" href="<?php echo htmlspecialchars($baseUrl . '/feed.xml', ENT_QUOTES, 'UTF-8'); ?>">
 <?php endif; ?>
 </head>
 <body>

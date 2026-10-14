@@ -30,6 +30,7 @@ $config = require __DIR__ . '/config/site.php';
 date_default_timezone_set($config['timezone']);
 $localization = new Localization((string) $config['language'], __DIR__ . '/lang');
 $config['language_code'] = $localization->languageCode();
+$config['site_description'] = $localization->get('site_description');
 
 $markdown = new Markdown();
 $repository = new ContentRepository($config['content_path'], new FrontMatter(), $markdown, $config['cdn_url'] ?? null);

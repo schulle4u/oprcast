@@ -18,6 +18,7 @@ return [
     'podcast' => 'Podcast',
     'cover_alt' => 'Cover of {title}',
     'episodes' => 'Episodes',
+    'all_episodes' => 'All episodes',
     'no_episodes' => 'No episodes published yet.',
     'breadcrumbs' => 'Breadcrumbs',
     'audio_fallback' => 'Your browser does not support the audio player.',

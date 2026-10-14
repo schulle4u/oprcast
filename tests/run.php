@@ -84,6 +84,8 @@ $series = $repository->seriesBySlug('test-cast');
 $episodes = $repository->episodes('test-cast');
 $test($series['title'] === 'Test Cast', 'Repository loads a series.');
 $test(count($episodes) === 1 && $episodes[0]['date'] instanceof DateTimeImmutable, 'Repository loads and normalizes episodes.');
+$allEpisodes = $repository->allEpisodes();
+$test(count($allEpisodes) === 1 && $allEpisodes[0]['series_title'] === 'Test Cast', 'Repository loads episodes across all series.');
 $test((new Validator())->validate($repository) === [], 'Validator accepts a complete fixture.');
 $test(
     $repository->mediaUrl($episodes[0], 'audio', 'https://example.test') === 'https://example.test/content/test-cast/episode.mp3',
@@ -111,11 +113,14 @@ if (class_exists(XMLWriter::class)) {
     $config = ['language' => 'en-US', 'feed_limit' => 100];
     $feeds = new FeedBuilder($config, $markdown);
     $rss = $feeds->rss($series, $episodes, 'https://example.test', $repository);
+    $metaRss = $feeds->metaRss([$series], $allEpisodes, 'https://example.test', $repository);
     $atom = $feeds->atom($series, $episodes, 'https://example.test', $repository);
     $json = json_decode($feeds->json($series, $episodes, 'https://example.test', $repository), true, flags: JSON_THROW_ON_ERROR);
     $cdnRss = $feeds->rss($series, $episodes, 'https://example.test', $cdnRepository);
     $chaptersJson = json_decode($feeds->chapters($episodes[0]), true, flags: JSON_THROW_ON_ERROR);
     $test(simplexml_load_string($rss) !== false, 'RSS is well-formed XML.');
+    $test(simplexml_load_string($metaRss) !== false, 'Meta RSS is well-formed XML.');
+    $test(str_contains($metaRss, '<source url="https://example.test/test-cast/feed.xml">Test Cast</source>'), 'Meta RSS identifies the source series.');
     $test(simplexml_load_string($atom) !== false, 'Atom is well-formed XML.');
     $test(str_contains($rss, '<podcast:chapters'), 'RSS links Podcasting 2.0 chapters.');
     $test(str_contains($cdnRss, 'url="https://cdn.podcast.org/episode.mp3"'), 'RSS uses the configured CDN URL for relative enclosures.');
@@ -135,6 +140,13 @@ if (class_exists(XMLWriter::class)) {
     ];
     $english = new Localization('en', dirname(__DIR__) . '/system/lang');
     $application = new Application($appConfig, $repository, $markdown, $feeds, $english);
+    $_SERVER = ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/', 'SCRIPT_NAME' => '/index.php', 'HTTP_HOST' => 'example.test'];
+    ob_start();
+    $application->run();
+    $homePage = (string) ob_get_clean();
+    $test(str_contains($homePage, '<h2 id="episodes-title">All episodes</h2>'), 'Home page lists all episodes.');
+    $test(str_contains($homePage, 'https://example.test/test-cast/first/'), 'Home page links to episodes.');
+
     $_SERVER = ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/test-cast/first/', 'SCRIPT_NAME' => '/index.php', 'HTTP_HOST' => 'example.test'];
     ob_start();
     $application->run();
@@ -149,6 +161,12 @@ if (class_exists(XMLWriter::class)) {
     $application->run();
     $routedRss = (string) ob_get_clean();
     $test(str_contains($routedRss, '<title>Test Cast</title>'), 'Application routes RSS feeds.');
+
+    $_SERVER['REQUEST_URI'] = '/feed.xml';
+    ob_start();
+    $application->run();
+    $routedMetaRss = (string) ob_get_clean();
+    $test(str_contains($routedMetaRss, '<source url="https://example.test/test-cast/feed.xml">Test Cast</source>'), 'Application routes the meta RSS feed.');
 } else {
     $failures[] = 'XMLWriter extension is required for feed tests.';
 }

@@ -95,6 +95,7 @@ The validator reports missing metadata, missing local media, duplicate GUIDs or 
 ## Published routes
 
 - `/` – series overview
+- `/feed.xml` – RSS meta feed containing episodes from all series
 - `/{series}/` – series and episodes
 - `/{series}/{episode}/` – episode page
 - `/{series}/feed.xml` – podcast RSS feed
