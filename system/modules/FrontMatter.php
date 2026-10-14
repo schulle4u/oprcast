@@ -4,9 +4,17 @@ declare(strict_types=1);
 
 namespace Oprcast;
 
+/** Parses the intentionally small YAML-like front matter format used by content files. */
 final class FrontMatter
 {
-    /** @return array{meta: array<string, mixed>, body: string} */
+    /**
+     * Separates metadata from the Markdown body and validates supported syntax.
+     *
+     * Only scalar values and top-level lists are supported; duplicate keys and
+     * malformed lines are rejected with a source-aware exception.
+     *
+     * @return array{meta: array<string, mixed>, body: string}
+     */
     public function parse(string $source, string $name = 'content'): array
     {
         $source = str_replace(["\r\n", "\r"], "\n", $source);
@@ -55,6 +63,7 @@ final class FrontMatter
         return ['meta' => $meta, 'body' => $body];
     }
 
+    /** Converts a front matter scalar to its string, integer, boolean or null value. */
     private function scalar(string $value): mixed
     {
         $value = trim($value);

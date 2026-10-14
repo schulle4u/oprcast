@@ -6,8 +6,17 @@ namespace Oprcast;
 
 use Throwable;
 
+/**
+ * Handles an HTTP request and renders the matching page or syndication feed.
+ *
+ * The application is deliberately framework-free: it owns routing, template
+ * rendering, cache validation and the security-related response headers.
+ */
 final class Application
 {
+    /**
+     * @param array<string, mixed> $config Runtime and site configuration.
+     */
     public function __construct(
         private readonly array $config,
         private readonly ContentRepository $repository,
@@ -17,11 +26,13 @@ final class Application
     ) {
     }
 
+    /** Returns the repository used by the application, primarily for bootstrap tooling. */
     public function repository(): ContentRepository
     {
         return $this->repository;
     }
 
+    /** Dispatches the current request and converts expected failures into error pages. */
     public function run(): void
     {
         try {
@@ -41,6 +52,7 @@ final class Application
         }
     }
 
+    /** Resolves a normalized request path and emits the corresponding response. */
     private function dispatch(string $path): void
     {
         if ($path === '/') {
@@ -96,6 +108,7 @@ final class Application
         throw new ContentException('Route not found.');
     }
 
+    /** Builds and conditionally serves one series feed in the requested format. */
     private function feed(string $slug, string $syndicationFormat, ?string $mediaFormat = null): void
     {
         $series = $this->repository->seriesBySlug($slug);
@@ -113,6 +126,11 @@ final class Application
         $this->conditional($body, $type, $modified);
     }
 
+    /**
+     * Renders a content template inside the common page layout.
+     *
+     * @param array<string, mixed> $data Variables exposed to both templates.
+     */
     private function html(string $template, array $data, int $status = 200): void
     {
         $data['config'] = $this->config;
@@ -133,6 +151,8 @@ final class Application
     }
 
     /**
+     * Finds the newest modification time across series and episode records.
+     *
      * @param list<array<string, mixed>> $series
      * @param list<array<string, mixed>> $episodes
      */
@@ -145,6 +165,7 @@ final class Application
         return $modified;
     }
 
+    /** Sends a cacheable response, honoring ETag and If-Modified-Since validators. */
     private function conditional(string $body, string $type, int $modified): void
     {
         $etag = '"' . hash('sha256', $body) . '"';
@@ -161,7 +182,11 @@ final class Application
         $this->send($notModified ? '' : $body, $type, $notModified ? 304 : 200, $headers);
     }
 
-    /** @param array<string, string> $headers */
+    /**
+     * Emits an HTTP response and suppresses its body for HEAD and 304 responses.
+     *
+     * @param array<string, string> $headers Additional response headers.
+     */
     private function send(string $body, string $type, int $status = 200, array $headers = []): void
     {
         http_response_code($status);
@@ -176,6 +201,7 @@ final class Application
         }
     }
 
+    /** Returns the URL-decoded request path relative to the installation directory. */
     private function requestPath(): string
     {
         $path = rawurldecode((string) parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH));
@@ -186,6 +212,7 @@ final class Application
         return '/' . ltrim($path, '/');
     }
 
+    /** Resolves the configured public base URL or derives one from the request. */
     private function baseUrl(): string
     {
         if (is_string($this->config['base_url']) && $this->config['base_url'] !== '') {

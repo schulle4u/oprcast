@@ -7,11 +7,13 @@ namespace Oprcast;
 use DateTimeInterface;
 use RuntimeException;
 
+/** Loads a language catalogue and formats translated user-facing strings. */
 final class Localization
 {
     /** @var array<string, string> */
     private readonly array $strings;
 
+    /** Loads and validates the selected PHP language file from the given directory. */
     public function __construct(string $language, string $directory)
     {
         if (preg_match('/^[a-z0-9_-]+$/i', $language) !== 1) {
@@ -36,7 +38,11 @@ final class Localization
         $this->strings = $strings;
     }
 
-    /** @param array<string, scalar> $replacements */
+    /**
+     * Returns a translation and replaces named placeholders such as `{date}`.
+     *
+     * @param array<string, scalar> $replacements
+     */
     public function get(string $key, array $replacements = []): string
     {
         if (!array_key_exists($key, $this->strings)) {
@@ -50,11 +56,13 @@ final class Localization
         return strtr($this->strings[$key], $replace);
     }
 
+    /** Returns the catalogue's language code for feeds and document metadata. */
     public function languageCode(): string
     {
         return $this->get('language_code');
     }
 
+    /** Formats an episode date and time according to the active catalogue. */
     public function formatEpisodeDate(DateTimeInterface $date): string
     {
         return $this->get('episode_datetime', [

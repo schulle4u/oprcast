@@ -7,12 +7,23 @@ namespace Oprcast;
 use DateTimeInterface;
 use XMLWriter;
 
+/** Serializes normalized podcast records as RSS, Atom, JSON and chapter feeds. */
 final class FeedBuilder
 {
+    /** @param array<string, mixed> $config Feed limits and site metadata. */
     public function __construct(private readonly array $config, private readonly Markdown $markdown)
     {
     }
 
+    /**
+     * Builds an RSS 2.0 podcast feed for one series and media format.
+     *
+     * Omitting the media format creates the canonical feed alias and selects the
+     * series default while still advertising all alternatives.
+     *
+     * @param array<string, mixed> $series
+     * @param list<array<string, mixed>> $episodes
+     */
     public function rss(array $series, array $episodes, string $baseUrl, ContentRepository $repository, ?string $mediaFormat = null): string
     {
         $defaultAlias = $mediaFormat === null;
@@ -182,6 +193,12 @@ final class FeedBuilder
         return $xml->outputMemory();
     }
 
+    /**
+     * Builds an Atom feed for one series, including all available enclosures.
+     *
+     * @param array<string, mixed> $series
+     * @param list<array<string, mixed>> $episodes
+     */
     public function atom(array $series, array $episodes, string $baseUrl, ContentRepository $repository): string
     {
         $xml = $this->writer();
@@ -217,6 +234,12 @@ final class FeedBuilder
         return $xml->outputMemory();
     }
 
+    /**
+     * Builds a JSON Feed 1.1 document for one series.
+     *
+     * @param array<string, mixed> $series
+     * @param list<array<string, mixed>> $episodes
+     */
     public function json(array $series, array $episodes, string $baseUrl, ContentRepository $repository): string
     {
         $items = [];
@@ -262,11 +285,17 @@ final class FeedBuilder
         return json_encode($feed, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) . "\n";
     }
 
+    /**
+     * Builds a Podcasting 2.0 chapters document for an episode.
+     *
+     * @param array<string, mixed> $episode
+     */
     public function chapters(array $episode): string
     {
         return json_encode(['version' => '1.2.0', 'chapters' => $episode['chapters']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) . "\n";
     }
 
+    /** Creates an indented in-memory UTF-8 XML writer. */
     private function writer(): XMLWriter
     {
         $xml = new XMLWriter();
@@ -276,6 +305,7 @@ final class FeedBuilder
         return $xml;
     }
 
+    /** Writes a complete text-only XML element. */
     private function element(XMLWriter $xml, string $name, string $value): void
     {
         $xml->startElement($name);
@@ -283,6 +313,7 @@ final class FeedBuilder
         $xml->endElement();
     }
 
+    /** Writes an Atom link, optionally including the resource length. */
     private function link(XMLWriter $xml, string $href, string $rel, string $type, ?string $length = null): void
     {
         $xml->startElement('link');
@@ -295,7 +326,11 @@ final class FeedBuilder
         $xml->endElement();
     }
 
-    /** @param array{url: string, mime_type: string, length: int} $enclosure */
+    /**
+     * Writes the primary RSS enclosure for an episode.
+     *
+     * @param array{url: string, mime_type: string, length: int} $enclosure
+     */
     private function writeEnclosure(XMLWriter $xml, array $enclosure): void
     {
         $xml->startElement('enclosure');
@@ -306,6 +341,8 @@ final class FeedBuilder
     }
 
     /**
+     * Advertises each media variant using the Podcasting 2.0 namespace.
+     *
      * @param list<array{format: string, url: string, mime_type: string, length: int, default: bool}> $enclosures
      */
     private function writeAlternateEnclosures(XMLWriter $xml, array $enclosures, string $selectedFormat): void
@@ -325,16 +362,24 @@ final class FeedBuilder
         }
     }
 
+    /** Joins a public base URL and relative path without duplicate separators. */
     private function url(string $baseUrl, string $path): string
     {
         return rtrim($baseUrl, '/') . '/' . ltrim($path, '/');
     }
 
+    /** Converts a loosely typed metadata value to an XML boolean literal. */
     private function bool(mixed $value): string
     {
         return filter_var($value, FILTER_VALIDATE_BOOL) ? 'true' : 'false';
     }
 
+    /**
+     * Returns the newest modification timestamp within one series feed.
+     *
+     * @param array<string, mixed> $series
+     * @param list<array<string, mixed>> $episodes
+     */
     private function lastModified(array $series, array $episodes): \DateTimeImmutable
     {
         $modified = (int) $series['modified'];
@@ -345,6 +390,8 @@ final class FeedBuilder
     }
 
     /**
+     * Returns the newest timestamp represented in the site-wide feed.
+     *
      * @param list<array<string, mixed>> $seriesList
      * @param list<array<string, mixed>> $episodes
      */
@@ -357,6 +404,7 @@ final class FeedBuilder
         return new \DateTimeImmutable('@' . $modified);
     }
 
+    /** Converts an MM:SS or HH:MM:SS duration to seconds for JSON Feed. */
     private function durationSeconds(string $duration): int
     {
         $parts = array_map('intval', explode(':', $duration));

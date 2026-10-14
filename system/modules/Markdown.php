@@ -4,8 +4,15 @@ declare(strict_types=1);
 
 namespace Oprcast;
 
+/**
+ * Renders the project's supported Markdown subset and extracts podcast chapters.
+ *
+ * Output is escaped before inline formatting is applied so content files cannot
+ * inject arbitrary HTML or unsafe link schemes.
+ */
 final class Markdown
 {
+    /** Creates a renderer using the localized heading that identifies chapters. */
     public function __construct(private readonly string $chapterKeyword)
     {
         if (trim($chapterKeyword) === '') {
@@ -13,6 +20,7 @@ final class Markdown
         }
     }
 
+    /** Converts headings, paragraphs, lists, quotes and fenced code to safe HTML. */
     public function render(string $markdown): string
     {
         $lines = explode("\n", str_replace(["\r\n", "\r"], "\n", $markdown));
@@ -91,7 +99,11 @@ final class Markdown
         return implode("\n", $html);
     }
 
-    /** @return list<array{startTime: int, title: string}> */
+    /**
+     * Extracts timestamped entries from the configured chapter section.
+     *
+     * @return list<array{startTime: int, title: string}>
+     */
     public function chapters(string $markdown): array
     {
         $keyword = preg_quote($this->chapterKeyword, '/');
@@ -111,11 +123,13 @@ final class Markdown
         return $chapters;
     }
 
+    /** Produces plain text from Markdown for feed summaries and metadata. */
     public function text(string $markdown): string
     {
         return trim(html_entity_decode(strip_tags($this->render($markdown)), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
     }
 
+    /** Escapes and renders the supported inline link, code and emphasis syntax. */
     private function inline(string $text): string
     {
         $escaped = htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -132,6 +146,7 @@ final class Markdown
         return preg_replace('/(?<!\*)\*([^*]+)\*(?!\*)/u', '<em>$1</em>', $escaped) ?? $escaped;
     }
 
+    /** Creates an HTML-safe fragment identifier for a heading. */
     private function slug(string $text): string
     {
         $slug = strtolower(trim(preg_replace('/[^\pL\pN]+/u', '-', $text) ?? '', '-'));

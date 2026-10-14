@@ -4,9 +4,17 @@ declare(strict_types=1);
 
 namespace Oprcast;
 
+/** Performs cross-file and field-level checks on all podcast content. */
 final class Validator
 {
-    /** @return list<string> */
+    /**
+     * Validates series, episodes, media references, GUIDs and chapter ordering.
+     *
+     * All discoverable errors are returned together so editors can fix a content
+     * set in one pass instead of failing at the first invalid record.
+     *
+     * @return list<string>
+     */
     public function validate(ContentRepository $repository): array
     {
         $errors = [];
@@ -85,7 +93,13 @@ final class Validator
         return $errors;
     }
 
-    /** @param list<string> $fields @param list<string> $errors */
+    /**
+     * Adds an error for every required field that has no meaningful value.
+     *
+     * @param array<string, mixed> $item
+     * @param list<string> $fields
+     * @param list<string> $errors
+     */
     private function required(array $item, array $fields, array &$errors): void
     {
         foreach ($fields as $field) {
@@ -95,7 +109,12 @@ final class Validator
         }
     }
 
-    /** @param list<string> $errors */
+    /**
+     * Verifies that relative media exists locally unless a CDN supplies it.
+     *
+     * @param array<string, mixed> $item
+     * @param list<string> $errors
+     */
     private function localFile(ContentRepository $repository, array $item, string $field, array &$errors): void
     {
         if (!isset($item[$field]) || filter_var($item[$field], FILTER_VALIDATE_URL) !== false || $repository->usesCdnForRelativeMedia()) {

@@ -7,10 +7,19 @@ namespace Oprcast;
 use DateTimeImmutable;
 use FilesystemIterator;
 
+/**
+ * Loads podcast series, episodes and pages from the filesystem.
+ *
+ * Besides mapping Markdown files to normalized records, the repository keeps
+ * path handling inside the content root and resolves media variants and URLs.
+ */
 final class ContentRepository
 {
     private readonly ?string $cdnUrl;
 
+    /**
+     * @param array<string, array{extension: string, mime_type: string}> $mediaFormats
+     */
     public function __construct(
         private readonly string $root,
         private readonly FrontMatter $frontMatter,
@@ -30,7 +39,11 @@ final class ContentRepository
         $this->cdnUrl = null;
     }
 
-    /** @return list<array<string, mixed>> */
+    /**
+     * Returns every series with an index file, sorted by title.
+     *
+     * @return list<array<string, mixed>>
+     */
     public function series(): array
     {
         if (!is_dir($this->root)) {
@@ -51,7 +64,11 @@ final class ContentRepository
         return $series;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * Loads one series by its URL-safe slug.
+     *
+     * @return array<string, mixed>
+     */
     public function seriesBySlug(string $slug): array
     {
         if (!$this->validSlug($slug)) {
@@ -60,7 +77,14 @@ final class ContentRepository
         return $this->loadSeries($slug);
     }
 
-    /** @return list<array<string, mixed>> */
+    /**
+     * Returns a series' episodes in reverse publication order.
+     *
+     * Future episodes are hidden unless explicitly requested, which allows the
+     * same repository to serve the site and validate scheduled publications.
+     *
+     * @return list<array<string, mixed>>
+     */
     public function episodes(string $seriesSlug, bool $includeFuture = false): array
     {
         $directory = $this->safeDirectory($seriesSlug);
@@ -78,7 +102,11 @@ final class ContentRepository
         return $episodes;
     }
 
-    /** @return list<array<string, mixed>> */
+    /**
+     * Collects episodes from all series and annotates them with the series title.
+     *
+     * @return list<array<string, mixed>>
+     */
     public function allEpisodes(bool $includeFuture = false): array
     {
         $episodes = [];
@@ -92,7 +120,11 @@ final class ContentRepository
         return $episodes;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * Finds one published episode by series and episode slug.
+     *
+     * @return array<string, mixed>
+     */
     public function episode(string $seriesSlug, string $episodeSlug): array
     {
         if (!$this->validSlug($episodeSlug)) {
@@ -106,7 +138,11 @@ final class ContentRepository
         throw new ContentException('Episode not found.');
     }
 
-    /** @return list<array<string, mixed>> */
+    /**
+     * Loads all standalone pages from the reserved `pages` directory.
+     *
+     * @return list<array<string, mixed>>
+     */
     public function pages(): array
     {
         $directory = $this->root . '/pages';
@@ -132,7 +168,11 @@ final class ContentRepository
         return $pages;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * Finds a standalone page by slug.
+     *
+     * @return array<string, mixed>
+     */
     public function page(string $slug): array
     {
         foreach ($this->pages() as $page) {
@@ -143,6 +183,11 @@ final class ContentRepository
         throw new ContentException('Page not found.');
     }
 
+    /**
+     * Resolves a media field to a safe HTTP(S), CDN or local-content URL.
+     *
+     * @param array<string, mixed> $item
+     */
     public function mediaUrl(array $item, string $field, string $baseUrl): ?string
     {
         $value = $item[$field] ?? null;
@@ -165,12 +210,18 @@ final class ContentRepository
         return rtrim($baseUrl, '/') . '/content/' . rawurlencode((string) $item['series_slug']) . '/' . $path;
     }
 
+    /** Reports whether relative media paths are published through a configured CDN. */
     public function usesCdnForRelativeMedia(): bool
     {
         return $this->cdnUrl !== null;
     }
 
-    /** @return list<string> */
+    /**
+     * Validates and returns the media formats enabled for a series.
+     *
+     * @param array<string, mixed> $series
+     * @return list<string>
+     */
     public function seriesFormats(array $series): array
     {
         $formats = $series['formats'] ?? [];
@@ -195,6 +246,11 @@ final class ContentRepository
         return array_values($formats);
     }
 
+    /**
+     * Returns the series' default format after checking that it is enabled.
+     *
+     * @param array<string, mixed> $series
+     */
     public function defaultFormat(array $series): string
     {
         $format = $series['default_format'] ?? null;
@@ -208,6 +264,10 @@ final class ContentRepository
     }
 
     /**
+     * Builds enclosure metadata for every media format enabled by the series.
+     *
+     * @param array<string, mixed> $series
+     * @param array<string, mixed> $episode
      * @return list<array{format: string, url: string, mime_type: string, length: int, default: bool}>
      */
     public function enclosures(array $series, array $episode, string $baseUrl): array
@@ -239,7 +299,13 @@ final class ContentRepository
         return $enclosures;
     }
 
-    /** @return array{format: string, url: string, mime_type: string, length: int, default: bool} */
+    /**
+     * Selects a single enclosure in the requested format.
+     *
+     * @param array<string, mixed> $series
+     * @param array<string, mixed> $episode
+     * @return array{format: string, url: string, mime_type: string, length: int, default: bool}
+     */
     public function enclosure(array $series, array $episode, string $format, string $baseUrl): array
     {
         foreach ($this->enclosures($series, $episode, $baseUrl) as $enclosure) {
@@ -250,6 +316,11 @@ final class ContentRepository
         throw new ContentException("{$series['source']}: media format '{$format}' is not enabled for this podcast.");
     }
 
+    /**
+     * Determines media size locally or reads the required explicit remote size.
+     *
+     * @param array<string, mixed> $episode
+     */
     private function mediaLength(array $episode, string $media, string $format): int
     {
         if (filter_var($media, FILTER_VALIDATE_URL) === false) {
@@ -272,7 +343,11 @@ final class ContentRepository
         return $length;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * Loads and normalizes a series index record.
+     *
+     * @return array<string, mixed>
+     */
     private function loadSeries(string $slug): array
     {
         $file = $this->safeDirectory($slug) . '/index.md';
@@ -291,7 +366,11 @@ final class ContentRepository
         ]);
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * Loads an episode file and derives its slug, publication date and chapters.
+     *
+     * @return array<string, mixed>
+     */
     private function loadEpisode(string $seriesSlug, string $file): array
     {
         $parsed = $this->read($file);
@@ -318,7 +397,11 @@ final class ContentRepository
         ]);
     }
 
-    /** @return array{meta: array<string, mixed>, body: string} */
+    /**
+     * Reads a content file and delegates front matter parsing.
+     *
+     * @return array{meta: array<string, mixed>, body: string}
+     */
     private function read(string $file): array
     {
         $source = file_get_contents($file);
@@ -328,6 +411,7 @@ final class ContentRepository
         return $this->frontMatter->parse($source, $file);
     }
 
+    /** Resolves an existing series directory after validating its slug. */
     private function safeDirectory(string $slug): string
     {
         if (!$this->validSlug($slug)) {
@@ -340,6 +424,7 @@ final class ContentRepository
         return $directory;
     }
 
+    /** Checks the lowercase, hyphen-separated slug format used in routes and paths. */
     private function validSlug(string $slug): bool
     {
         return preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $slug) === 1;
