@@ -10,6 +10,7 @@ return [
     'site_description' => 'Podcasts, published independently.',
     'skip_to_content' => 'Skip to content',
     'main_navigation' => 'Main',
+    'main_navigation_home' => 'Home',
     'published_with' => 'Published with OPRCast',
     'publisher_name' => 'Flat-file podcast publisher',
     'no_podcasts_title' => 'No podcasts published yet',

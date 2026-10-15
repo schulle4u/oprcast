@@ -27,6 +27,7 @@ $documentTitle = isset($title) ? $title . ' – ' . $siteTitle : (($episode['tit
     <a class="brand" href="<?php echo htmlspecialchars($baseUrl, ENT_QUOTES, 'UTF-8'); ?>/"><?php echo htmlspecialchars($siteTitle, ENT_QUOTES, 'UTF-8'); ?></a>
 <?php if ($pages !== []): ?>
     <nav aria-label="<?php echo htmlspecialchars($localization->get('main_navigation'), ENT_QUOTES, 'UTF-8'); ?>"><ul>
+    <li><a href="<?php echo htmlspecialchars($baseUrl, ENT_QUOTES, 'UTF-8'); ?>/"><?php echo htmlspecialchars($localization->get('main_navigation_home'), ENT_QUOTES, 'UTF-8'); ?></a></li>
 <?php foreach ($pages as $navigationPage): ?>
         <li><a href="<?php echo htmlspecialchars($baseUrl . '/pages/' . $navigationPage['slug'] . '/', ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($navigationPage['title'], ENT_QUOTES, 'UTF-8'); ?></a></li>
 <?php endforeach; ?>
