@@ -22,9 +22,15 @@ final class Validator
         $enclosures = [];
 
         try {
+            $repository->pages();
+        } catch (ContentException $exception) {
+            $errors[] = $exception->getMessage();
+        }
+
+        try {
             $allSeries = $repository->series();
         } catch (ContentException $exception) {
-            return [$exception->getMessage()];
+            return [...$errors, $exception->getMessage()];
         }
 
         foreach ($allSeries as $series) {
@@ -117,7 +123,7 @@ final class Validator
      */
     private function localFile(ContentRepository $repository, array $item, string $field, array &$errors): void
     {
-        if (!isset($item[$field]) || filter_var($item[$field], FILTER_VALIDATE_URL) !== false || $repository->usesCdnForRelativeMedia()) {
+        if (!isset($item[$field]) || !is_string($item[$field]) || trim($item[$field]) === '' || filter_var($item[$field], FILTER_VALIDATE_URL) !== false || $repository->usesCdnForRelativeMedia()) {
             return;
         }
         $path = dirname((string) $item['source']) . '/' . ltrim((string) $item[$field], '/');

@@ -202,6 +202,123 @@ if (class_exists(XMLWriter::class)) {
     $application->run();
     $routedMetaRss = (string) ob_get_clean();
     $test(str_contains($routedMetaRss, '<source url="https://example.test/test-cast/feed.xml">Test Cast</source>'), 'Application routes the meta RSS feed.');
+
+    // Exercise HTTP semantics without a web server; preserve and check caller buffers.
+    $request = static function (string $path, array $headers = [], string $method = 'GET') use (&$application, $test): array {
+        $_SERVER = array_replace([
+            'REQUEST_METHOD' => $method, 'REQUEST_URI' => $path,
+            'SCRIPT_NAME' => '/index.php', 'HTTP_HOST' => 'example.test',
+        ], $headers);
+        http_response_code(200);
+        $level = ob_get_level();
+        ob_start();
+        $application->run();
+        $test(ob_get_level() === $level + 1, 'Requests restore the caller output buffer level.');
+        $body = (string) ob_get_clean();
+        while (ob_get_level() > $level) {
+            ob_end_clean();
+        }
+        return [http_response_code(), $body];
+    };
+    [$status, $body] = $request('/test-cast/feed.xml');
+    $etag = '"' . hash('sha256', $body) . '"';
+    foreach ([$etag, 'W/' . $etag, '"other", W/' . $etag, '*'] as $condition) {
+        [$status, $body] = $request('/test-cast/feed.xml', ['HTTP_IF_NONE_MATCH' => $condition]);
+        $test($status === 304 && $body === '', 'Matching strong, weak, list and wildcard ETags return empty 304 responses.');
+    }
+    $futureSince = gmdate('D, d M Y H:i:s', time() + 86400) . ' GMT';
+    [$status, $body] = $request('/test-cast/feed.xml', [
+        'HTTP_IF_NONE_MATCH' => '"stale"', 'HTTP_IF_MODIFIED_SINCE' => $futureSince,
+    ]);
+    $test($status === 200 && str_contains($body, '<rss'), 'A stale ETag takes precedence over If-Modified-Since.');
+    [$status, $body] = $request('/test-cast/feed.xml', ['HTTP_IF_MODIFIED_SINCE' => $futureSince]);
+    $test($status === 200 && str_contains($body, '<rss'), 'Date-only validators cannot suppress changed representations.');
+    [$status, $body] = $request('/test-cast/feed.xml', [], 'HEAD');
+    $test($status === 200 && $body === '', 'HEAD does not emit a feed body.');
+
+    $episodeFile = $fixture . '/test-cast/2025-01-01-first.md';
+    unlink($episodeFile);
+    [$status, $body] = $request('/test-cast/feed.xml', [
+        'HTTP_IF_NONE_MATCH' => $etag, 'HTTP_IF_MODIFIED_SINCE' => $futureSince,
+    ]);
+    $test($status === 200 && !str_contains($body, '<item>'), 'Deleting an episode invalidates the cached feed.');
+    file_put_contents($episodeFile, $cdnFixtureSource);
+
+    $seriesFile = $fixture . '/test-cast/index.md';
+    $seriesSource = (string) file_get_contents($seriesFile);
+    file_put_contents($seriesFile, str_replace('title: Test Cast', "title:\n  - Invalid title", $seriesSource));
+    $test((new Validator())->validate($repository) !== [], 'Invalid series titles are rejected before sorting or rendering.');
+    file_put_contents($seriesFile, $seriesSource);
+
+    $mtime = filemtime($episodeFile);
+    $futureDate = (new DateTimeImmutable('+1 day'))->format(DateTimeInterface::ATOM);
+    file_put_contents($episodeFile, str_replace('2025-01-01T10:00:00+00:00', $futureDate, $cdnFixtureSource));
+    touch($episodeFile, $mtime);
+    [$status, $body] = $request('/test-cast/feed.xml');
+    $unpublishedEtag = '"' . hash('sha256', $body) . '"';
+    $test(!str_contains($body, '<item>'), 'Future episodes remain unpublished.');
+    file_put_contents($episodeFile, $cdnFixtureSource);
+    touch($episodeFile, $mtime);
+    [$status, $body] = $request('/test-cast/feed.xml', [
+        'HTTP_IF_NONE_MATCH' => $unpublishedEtag, 'HTTP_IF_MODIFIED_SINCE' => $futureSince,
+    ]);
+    $test($status === 200 && str_contains($body, '<item>'), 'Publication changes invalidate feeds even when file mtimes stay unchanged.');
+
+    foreach ([
+        'title: First episode' => "title:\n  - Invalid title",
+        'guid: urn:uuid:420111d4-ff3a-425d-a921-2ab9a9054dd6' => "guid:\n  - Invalid GUID",
+        'explicit: false' => 'explicit: maybe',
+        'episode: 1' => 'episode: -1',
+    ] as $original => $invalid) {
+        file_put_contents($episodeFile, str_replace($original, $invalid, $cdnFixtureSource));
+        $errors = (new Validator())->validate($repository);
+        $test(count($errors) > 0 && str_contains(implode('\n', $errors), 'invalid type or value'), 'Validator rejects metadata types before rendering.');
+    }
+    foreach (['2025-02-30', '2025-02-29', '2025-01-01T24:00:00Z', '2025-01-01T10:60:00Z', 'tomorrow', 'false', 'null', "\n  - 2025-01-01"] as $invalidDate) {
+        file_put_contents($episodeFile, str_replace('date: 2025-01-01T10:00:00+00:00', 'date: ' . $invalidDate, $cdnFixtureSource));
+        $errors = (new Validator())->validate($repository);
+        $test(str_contains(implode('\n', $errors), 'invalid or missing publication date'), 'Invalid calendar dates, times, relative dates and date types are rejected.');
+    }
+    foreach (['2024-02-29', '2025-01-01T10:00:00Z', '2025-01-01T10:00:00+02:00'] as $validDate) {
+        file_put_contents($episodeFile, str_replace('2025-01-01T10:00:00+00:00', $validDate, $cdnFixtureSource));
+        $test((new Validator())->validate($repository) === [], 'Valid date-only and timezone-qualified dates are accepted.');
+    }
+    file_put_contents($episodeFile, str_replace("date: 2025-01-01T10:00:00+00:00\n", '', $cdnFixtureSource));
+    $test($repository->episodes('test-cast')[0]['date']->format('Y-m-d') === '2025-01-01', 'Missing explicit dates still use the filename date.');
+    file_put_contents($episodeFile, $cdnFixtureSource);
+
+    $previousLog = ini_get('error_log');
+    ini_set('error_log', $fixture . '/errors.log');
+    mkdir($fixture . '/pages');
+    file_put_contents($fixture . '/pages/broken.md', "---\ntitle: Broken\nmalformed front matter\n---\nBroken page");
+    file_put_contents($fixture . '/pages/valid.md', "---\ntitle: Valid page\n---\nValid body");
+    [$status, $body] = $request('/');
+    $test($status === 200 && str_contains($body, 'Valid page') && !str_contains($body, '>Broken<'), 'Broken navigation pages do not disable the homepage or valid navigation.');
+    [$status, $body] = $request('/pages/valid/');
+    $test($status === 200 && str_contains($body, 'Valid body'), 'Valid static pages remain accessible alongside a broken page.');
+    [$status, $body] = $request('/pages/broken/');
+    $test($status === 500 && substr_count($body, '<!doctype html>') === 1, 'Broken static pages produce a complete error page without recursion.');
+    $test((new Validator())->validate($repository) !== [], 'Content validation includes static pages.');
+    file_put_contents($fixture . '/pages/broken.md', "---\ntitle:\n  - Invalid title\n---\nBroken page");
+    $test(str_contains(implode('\n', (new Validator())->validate($repository)), 'invalid type or value'), 'Static page metadata types are validated.');
+    foreach (['/missing/', '/test-cast/missing/', '/pages/missing/', '/test-cast/feed.flac.xml'] as $missingPath) {
+        [$status, $body] = $request($missingPath);
+        $test($status === 404 && substr_count($body, '<!doctype html>') === 1, 'Missing resources return complete 404 responses even with broken navigation.');
+    }
+    unlink($fixture . '/test-cast/episode.mp3');
+    [$status, $body] = $request('/test-cast/first/');
+    $test($status === 500 && !str_contains($body, '<article>') && substr_count($body, '<!doctype html>') === 1, 'Failed episode rendering discards partial HTML and returns 500.');
+    [$status, $body] = $request('/test-cast/feed.xml');
+    $test($status === 500, 'Missing media is a server error rather than a missing route.');
+    [$status, $body] = $request('/test-cast/first/', [], 'HEAD');
+    $test($status === 500 && $body === '', 'HEAD errors do not leak partially rendered output.');
+    $log = (string) file_get_contents($fixture . '/errors.log');
+    $test(str_contains($log, 'broken.md') && str_contains($log, 'episode.mp3'), 'Content failures are recorded in the server log.');
+    $application = new Application(array_replace($appConfig, ['development' => false]), $repository, $markdown, $feeds, $english);
+    [$status, $body] = $request('/test-cast/first/');
+    $test($status === 500 && !str_contains($body, $fixture) && !str_contains($body, 'episode.mp3'), 'Production error pages conceal filesystem paths and internal details.');
+    ini_set('error_log', $previousLog);
+    file_put_contents($fixture . '/test-cast/episode.mp3', 'fixture-audio');
 } else {
     $failures[] = 'XMLWriter extension is required for feed tests.';
 }

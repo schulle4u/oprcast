@@ -7,7 +7,7 @@ namespace Oprcast;
 use RuntimeException;
 
 /** Signals invalid, unsafe or missing content encountered while serving the site. */
-final class ContentException extends RuntimeException
+class ContentException extends RuntimeException
 {
 }
 

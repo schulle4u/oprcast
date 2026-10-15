@@ -89,6 +89,10 @@ Static pages such as an imprint can be placed in `content/pages/imprint.md`; the
 
 Supported front matter values are strings, integers, booleans, and simple lists. Supported Markdown includes headings, paragraphs, ordered and unordered lists, links, emphasis, blockquotes, inline code, and fenced code blocks. Raw HTML is escaped intentionally.
 
+Metadata fields are type-checked when loaded: text fields must be strings, `explicit` must be a boolean, and episode/season numbers and audio lengths must be positive integers. Publication dates accept `YYYY-MM-DD` or `YYYY-MM-DDTHH:MM:SS` followed by `Z` or an offset such as `+02:00`. Invalid calendar dates and relative expressions are rejected. If `date` is omitted, the date in the episode filename is used.
+
+Feeds and chapter files use content-based ETags for conditional requests. Modification-date headers are deliberately omitted because filesystem timestamps cannot reliably represent deletions or scheduled publication. Invalid content is logged to PHP's error log and returns HTTP 500; missing resources return 404. Broken static pages are omitted from navigation so other pages remain available.
+
 ## Localization
 
 The `language` setting in `system/config/site.php` selects the CMS language. Its value is the filename below `system/lang` without the `.php` extension; for example, `de` loads `system/lang/de.php`. German and English translations are included.

@@ -72,7 +72,7 @@ final class ContentRepository
     public function seriesBySlug(string $slug): array
     {
         if (!$this->validSlug($slug)) {
-            throw new ContentException('Podcast series not found.');
+            throw new NotFoundException('Podcast series not found.');
         }
         return $this->loadSeries($slug);
     }
@@ -128,14 +128,14 @@ final class ContentRepository
     public function episode(string $seriesSlug, string $episodeSlug): array
     {
         if (!$this->validSlug($episodeSlug)) {
-            throw new ContentException('Episode not found.');
+            throw new NotFoundException('Episode not found.');
         }
         foreach ($this->episodes($seriesSlug) as $episode) {
             if ($episode['slug'] === $episodeSlug) {
                 return $episode;
             }
         }
-        throw new ContentException('Episode not found.');
+        throw new NotFoundException('Episode not found.');
     }
 
     /**
@@ -143,7 +143,7 @@ final class ContentRepository
      *
      * @return list<array<string, mixed>>
      */
-    public function pages(): array
+    public function pages(bool $skipInvalid = false): array
     {
         $directory = $this->root . '/pages';
         if (!is_dir($directory)) {
@@ -151,16 +151,25 @@ final class ContentRepository
         }
         $pages = [];
         foreach (glob($directory . '/*.md') ?: [] as $file) {
-            $parsed = $this->read($file);
             $slug = pathinfo($file, PATHINFO_FILENAME);
             if (!$this->validSlug($slug)) {
+                continue;
+            }
+            try {
+                $parsed = $this->read($file);
+                $html = $this->markdown->render($parsed['body']);
+            } catch (ContentException $exception) {
+                if (!$skipInvalid) {
+                    throw $exception;
+                }
+                error_log((string) $exception);
                 continue;
             }
             $pages[] = array_replace($parsed['meta'], [
                 'slug' => $slug,
                 'title' => $parsed['meta']['title'] ?? ucfirst(str_replace('-', ' ', $slug)),
                 'body' => $parsed['body'],
-                'html' => $this->markdown->render($parsed['body']),
+                'html' => $html,
                 'source' => $file,
                 'modified' => filemtime($file) ?: time(),
             ]);
@@ -175,12 +184,20 @@ final class ContentRepository
      */
     public function page(string $slug): array
     {
-        foreach ($this->pages() as $page) {
-            if ($page['slug'] === $slug) {
-                return $page;
-            }
+        if (!$this->validSlug($slug) || !is_file($this->root . '/pages/' . $slug . '.md')) {
+            throw new NotFoundException('Page not found.');
         }
-        throw new ContentException('Page not found.');
+        // Keep unrelated broken pages from preventing access to a valid page.
+        $file = $this->root . '/pages/' . $slug . '.md';
+        $parsed = $this->read($file);
+        return array_replace($parsed['meta'], [
+            'slug' => $slug,
+            'title' => $parsed['meta']['title'] ?? ucfirst(str_replace('-', ' ', $slug)),
+            'body' => $parsed['body'],
+            'html' => $this->markdown->render($parsed['body']),
+            'source' => $file,
+            'modified' => filemtime($file) ?: time(),
+        ]);
     }
 
     /**
@@ -352,7 +369,7 @@ final class ContentRepository
     {
         $file = $this->safeDirectory($slug) . '/index.md';
         if (!is_file($file)) {
-            throw new ContentException("Podcast series '{$slug}' not found.");
+            throw new NotFoundException("Podcast series '{$slug}' not found.");
         }
         $parsed = $this->read($file);
         return array_replace($parsed['meta'], [
@@ -380,7 +397,15 @@ final class ContentRepository
             throw new ContentException("{$file}: invalid episode slug.");
         }
         try {
-            $date = new DateTimeImmutable((string) ($parsed['meta']['date'] ?? substr($filename, 0, 10)));
+            $value = array_key_exists('date', $parsed['meta']) ? $parsed['meta']['date'] : substr($filename, 0, 10);
+            if (!is_string($value) || preg_match('/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d))?$/D', $value) !== 1) {
+                throw new ContentException('Expected YYYY-MM-DD or an ISO 8601 timestamp with timezone.');
+            }
+            $date = new DateTimeImmutable($value);
+            $warnings = DateTimeImmutable::getLastErrors();
+            if ($warnings !== false && ($warnings['warning_count'] > 0 || $warnings['error_count'] > 0)) {
+                throw new ContentException('Invalid calendar date or time.');
+            }
         } catch (\Throwable) {
             throw new ContentException("{$file}: invalid or missing publication date.");
         }
@@ -408,18 +433,20 @@ final class ContentRepository
         if ($source === false) {
             throw new ContentException("Cannot read {$file}.");
         }
-        return $this->frontMatter->parse($source, $file);
+        $parsed = $this->frontMatter->parse($source, $file);
+        Metadata::validate($parsed['meta'], $file);
+        return $parsed;
     }
 
     /** Resolves an existing series directory after validating its slug. */
     private function safeDirectory(string $slug): string
     {
         if (!$this->validSlug($slug)) {
-            throw new ContentException('Invalid series slug.');
+            throw new NotFoundException('Invalid series slug.');
         }
         $directory = $this->root . '/' . $slug;
         if (!is_dir($directory)) {
-            throw new ContentException("Podcast series '{$slug}' not found.");
+            throw new NotFoundException("Podcast series '{$slug}' not found.");
         }
         return $directory;
     }

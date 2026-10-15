@@ -41,12 +41,13 @@ final class Application
                 return;
             }
             $this->dispatch($this->requestPath());
-        } catch (ContentException $exception) {
+        } catch (NotFoundException $exception) {
             $this->html('error', [
                 'title' => $this->localization->get('not_found_title'),
                 'message' => $this->localization->get('not_found_message'),
             ], 404);
         } catch (Throwable $exception) {
+            error_log((string) $exception);
             $message = $this->config['development'] ? $exception->getMessage() : $this->localization->get('server_error_message');
             $this->html('error', ['title' => $this->localization->get('server_error_title'), 'message' => $message], 500);
         }
@@ -68,7 +69,6 @@ final class Application
             $this->conditional(
                 $this->feeds->metaRss($series, $episodes, $this->baseUrl(), $this->repository),
                 'application/rss+xml; charset=utf-8',
-                $this->latestModified($series, $episodes),
             );
             return;
         }
@@ -91,7 +91,7 @@ final class Application
         }
         if (preg_match('#^/([a-z0-9]+(?:-[a-z0-9]+)*)/([a-z0-9]+(?:-[a-z0-9]+)*)/chapters\.json$#', $path, $match) === 1) {
             $episode = $this->repository->episode($match[1], $match[2]);
-            $this->conditional($this->feeds->chapters($episode), 'application/json+chapters; charset=utf-8', (int) $episode['modified']);
+            $this->conditional($this->feeds->chapters($episode), 'application/json+chapters; charset=utf-8');
             return;
         }
         if (preg_match('#^/([a-z0-9]+(?:-[a-z0-9]+)*)/([a-z0-9]+(?:-[a-z0-9]+)*)/?$#', $path, $match) === 1) {
@@ -105,7 +105,7 @@ final class Application
             $this->html('series', ['series' => $series, 'episodes' => $this->repository->episodes($match[1])]);
             return;
         }
-        throw new ContentException('Route not found.');
+        throw new NotFoundException('Route not found.');
     }
 
     /** Builds and conditionally serves one series feed in the requested format. */
@@ -113,17 +113,16 @@ final class Application
     {
         $series = $this->repository->seriesBySlug($slug);
         $episodes = $this->repository->episodes($slug);
+        if ($mediaFormat !== null && !in_array($mediaFormat, $this->repository->seriesFormats($series), true)) {
+            throw new NotFoundException('Media format not found.');
+        }
         $baseUrl = $this->baseUrl();
         [$body, $type] = match ($syndicationFormat) {
             'xml' => [$this->feeds->rss($series, $episodes, $baseUrl, $this->repository, $mediaFormat), 'application/rss+xml; charset=utf-8'],
             'atom' => [$this->feeds->atom($series, $episodes, $baseUrl, $this->repository), 'application/atom+xml; charset=utf-8'],
             'json' => [$this->feeds->json($series, $episodes, $baseUrl, $this->repository), 'application/feed+json; charset=utf-8'],
         };
-        $modified = (int) $series['modified'];
-        foreach ($episodes as $episode) {
-            $modified = max($modified, (int) $episode['modified']);
-        }
-        $this->conditional($body, $type, $modified);
+        $this->conditional($body, $type);
     }
 
     /**
@@ -135,48 +134,48 @@ final class Application
     {
         $data['config'] = $this->config;
         $data['baseUrl'] = $this->baseUrl();
-        $data['pages'] = $this->repository->pages();
+        $data['pages'] = $template === 'error' ? [] : $this->repository->pages(true);
         $data['repository'] = $this->repository;
         $data['markdown'] = $this->markdown;
         $data['localization'] = $this->localization;
         extract($data, EXTR_SKIP);
-        ob_start();
-        require dirname(__DIR__) . '/layouts/' . $template . '.php';
-        $content = (string) ob_get_clean();
-        ob_start();
-        require dirname(__DIR__) . '/layouts/base.php';
-        $this->send((string) ob_get_clean(), 'text/html; charset=utf-8', $status, [
+        $bufferLevel = ob_get_level();
+        try {
+            ob_start();
+            require dirname(__DIR__) . '/layouts/' . $template . '.php';
+            $content = (string) ob_get_clean();
+            ob_start();
+            require dirname(__DIR__) . '/layouts/base.php';
+            $body = (string) ob_get_clean();
+        } finally {
+            while (ob_get_level() > $bufferLevel) {
+                ob_end_clean();
+            }
+        }
+        $this->send($body, 'text/html; charset=utf-8', $status, [
             'Content-Security-Policy' => "default-src 'self'; img-src 'self' https: data:; media-src 'self' https:; style-src 'self'; base-uri 'self'; frame-ancestors 'self'",
         ]);
     }
 
-    /**
-     * Finds the newest modification time across series and episode records.
-     *
-     * @param list<array<string, mixed>> $series
-     * @param list<array<string, mixed>> $episodes
-     */
-    private function latestModified(array $series, array $episodes): int
-    {
-        $modified = 0;
-        foreach (array_merge($series, $episodes) as $item) {
-            $modified = max($modified, (int) ($item['modified'] ?? 0));
-        }
-        return $modified;
-    }
-
-    /** Sends a cacheable response, honoring ETag and If-Modified-Since validators. */
-    private function conditional(string $body, string $type, int $modified): void
+    /** Uses representation hashes: file mtimes cannot track deletions or scheduled publication. */
+    private function conditional(string $body, string $type): void
     {
         $etag = '"' . hash('sha256', $body) . '"';
-        $notModified = trim($_SERVER['HTTP_IF_NONE_MATCH'] ?? '') === $etag;
-        if (!$notModified && isset($_SERVER['HTTP_IF_MODIFIED_SINCE'])) {
-            $since = strtotime($_SERVER['HTTP_IF_MODIFIED_SINCE']);
-            $notModified = $since !== false && $since >= $modified;
+        $notModified = false;
+        $condition = trim($_SERVER['HTTP_IF_NONE_MATCH'] ?? '');
+        // If-Modified-Since is deliberately ignored because no reliable date is available.
+        if ($condition === '*') {
+            $notModified = true;
+        } elseif (preg_match_all('/(?:W\/)?"[^"\x00-\x20\x7f]*"/', $condition, $matches)) {
+            foreach ($matches[0] as $candidate) {
+                if (preg_replace('/^W\//', '', $candidate) === $etag) {
+                    $notModified = true;
+                    break;
+                }
+            }
         }
         $headers = [
             'ETag' => $etag,
-            'Last-Modified' => gmdate('D, d M Y H:i:s', $modified) . ' GMT',
             'Cache-Control' => 'public, max-age=300',
         ];
         $this->send($notModified ? '' : $body, $type, $notModified ? 304 : 200, $headers);
