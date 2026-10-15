@@ -21,6 +21,7 @@ return [
     'all_episodes' => 'Episodes of all podcasts',
     'no_episodes' => 'No episodes published yet.',
     'breadcrumbs' => 'Breadcrumbs',
+    'audio_caption' => 'Audio',
     'audio_fallback' => 'Your browser does not support the audio player.',
     'download_audio' => 'Download audio',
     'not_found_title' => 'Not found',

@@ -21,6 +21,7 @@ return [
     'all_episodes' => 'Episoden aller Podcasts',
     'no_episodes' => 'Noch keine Episoden veröffentlicht.',
     'breadcrumbs' => 'Brotkrumen',
+    'audio_caption' => 'Audio',
     'audio_fallback' => 'Dein Browser unterstützt den Audioplayer nicht.',
     'download_audio' => 'Audio herunterladen',
     'not_found_title' => 'Nicht gefunden',
