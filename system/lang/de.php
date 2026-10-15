@@ -18,7 +18,7 @@ return [
     'chapters_keyword' => 'Kapitel',
     'cover_alt' => 'Cover von {title}',
     'episodes' => 'Episoden',
-    'all_episodes' => 'Alle Episoden',
+    'all_episodes' => 'Episoden aller Podcasts',
     'no_episodes' => 'Noch keine Episoden veröffentlicht.',
     'breadcrumbs' => 'Brotkrumen',
     'audio_fallback' => 'Dein Browser unterstützt den Audioplayer nicht.',
