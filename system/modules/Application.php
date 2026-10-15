@@ -153,6 +153,7 @@ final class Application
             }
         }
         $this->send($body, 'text/html; charset=utf-8', $status, [
+            'Vary' => 'Accept-Language',
             'Content-Security-Policy' => "default-src 'self'; img-src 'self' https: data:; media-src 'self' https:; style-src 'self'; base-uri 'self'; frame-ancestors 'self'",
         ]);
     }

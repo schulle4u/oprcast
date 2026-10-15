@@ -29,11 +29,17 @@ spl_autoload_register(static function (string $class): void {
 $config = require __DIR__ . '/config/site.php';
 $config['media_formats'] = require __DIR__ . '/config/media.php';
 date_default_timezone_set($config['timezone']);
-$localization = new Localization((string) $config['language'], __DIR__ . '/lang');
-$config['language_code'] = $localization->languageCode();
-$config['site_description'] = $localization->get('site_description');
+$contentLocalization = new Localization((string) $config['language'], __DIR__ . '/lang');
+$config['language_code'] = $contentLocalization->languageCode();
+$config['site_description'] = $contentLocalization->get('site_description');
+$language = Localization::browserLanguage(
+    (string) ($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? ''),
+    (string) $config['language'],
+    __DIR__ . '/lang',
+);
+$localization = new Localization($language, __DIR__ . '/lang');
 
-$markdown = new Markdown($localization->get('chapters_keyword'));
+$markdown = new Markdown($contentLocalization->get('chapters_keyword'));
 $repository = new ContentRepository($config['content_path'], new FrontMatter(), $markdown, $config['media_formats'], $config['cdn_url'] ?? null);
 
 return new Application($config, $repository, $markdown, new FeedBuilder($config, $markdown), $localization);

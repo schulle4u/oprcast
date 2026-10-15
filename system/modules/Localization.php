@@ -13,6 +13,44 @@ final class Localization
     /** @var array<string, string> */
     private readonly array $strings;
 
+    /** Selects an installed catalogue by browser preference, or the configured fallback. */
+    public static function browserLanguage(string $acceptLanguage, string $fallback, string $directory): string
+    {
+        $available = [];
+        foreach (glob(rtrim($directory, '/\\') . '/*.php') ?: [] as $file) {
+            $language = pathinfo($file, PATHINFO_FILENAME);
+            $available[strtolower(str_replace('_', '-', $language))] = $language;
+        }
+
+        $preferences = [];
+        foreach (explode(',', $acceptLanguage) as $position => $preference) {
+            if (preg_match('/^\s*([a-z]{1,8}(?:-[a-z0-9]{1,8})*|\*)\s*(?:;\s*q\s*=\s*(0(?:\.[0-9]{0,3})?|1(?:\.0{0,3})?))?\s*$/i', $preference, $match) !== 1) {
+                continue;
+            }
+            $quality = isset($match[2]) ? (float) $match[2] : 1.0;
+            if ($quality > 0) {
+                $preferences[] = ['language' => strtolower($match[1]), 'quality' => $quality, 'position' => $position];
+            }
+        }
+        usort($preferences, static fn (array $a, array $b): int =>
+            ($b['quality'] <=> $a['quality']) ?: ($a['position'] <=> $b['position']));
+
+        foreach ($preferences as $preference) {
+            $language = $preference['language'];
+            if ($language === '*') {
+                return $fallback;
+            }
+            while ($language !== '') {
+                if (isset($available[$language])) {
+                    return $available[$language];
+                }
+                $separator = strrpos($language, '-');
+                $language = $separator === false ? '' : substr($language, 0, $separator);
+            }
+        }
+        return $fallback;
+    }
+
     /** Loads and validates the selected PHP language file from the given directory. */
     public function __construct(string $language, string $directory)
     {

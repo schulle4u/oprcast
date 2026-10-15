@@ -40,6 +40,54 @@ $test(count($englishChapters) === 2 && $englishChapters[1]['startTime'] === 62, 
 $test($englishMarkdown->chapters("## Kapitel\n\n- 00:00 Intro") === [], 'Markdown only recognizes the configured chapter keyword.');
 
 $test($german->languageCode() === 'de-DE', 'Localization provides the HTML language code.');
+foreach ([
+    ['en', 'de', 'en'],
+    ['EN-us,en;q=0.9,de;q=0.8', 'de', 'en'],
+    ['de;q=0.4,en;q=0.9', 'de', 'en'],
+    ['fr-CA, en-GB;q=0.8, de;q=0.5', 'de', 'en'],
+    ['de;q=0.8,en;q=0.8', 'en', 'de'],
+    ['', 'en', 'en'],
+    ['fr,es;q=0.8', 'de', 'de'],
+    ['en;q=0', 'de', 'de'],
+    ['en;q=1.5,de;q=0.5', 'en', 'de'],
+    ['en;q=invalid', 'de', 'de'],
+    ['../../en', 'de', 'de'],
+    ['*', 'de', 'de'],
+    ['en;q=1,*;q=0.5', 'de', 'en'],
+] as [$header, $fallback, $expected]) {
+    $test(
+        Localization::browserLanguage($header, $fallback, dirname(__DIR__) . '/system/lang') === $expected,
+        "Browser language selection handles '{$header}' with fallback '{$fallback}'.",
+    );
+}
+
+// Exercise request language selection through the real bootstrap and page renderer.
+$savedServer = $_SERVER;
+$siteConfig = require dirname(__DIR__) . '/system/config/site.php';
+$fallbackLocalization = new Localization($siteConfig['language'], dirname(__DIR__) . '/system/lang');
+foreach (['en-US,en;q=0.9' => 'en', 'de-DE,de;q=0.9' => 'de-DE', 'fr-FR' => $fallbackLocalization->languageCode(), '' => $fallbackLocalization->languageCode()] as $header => $expected) {
+    $_SERVER = [
+        'REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/missing/route/',
+        'SCRIPT_NAME' => '/index.php', 'HTTP_HOST' => 'example.test',
+        'HTTP_ACCEPT_LANGUAGE' => $header,
+    ];
+    $browserApplication = require dirname(__DIR__) . '/system/bootstrap.php';
+    ob_start();
+    $browserApplication->run();
+    $browserPage = (string) ob_get_clean();
+    $test(str_contains($browserPage, '<html lang="' . $expected . '">'), 'Bootstrap selects the browser language or configured fallback for error pages.');
+    $test(
+        count($markdown->chapters('## ' . $fallbackLocalization->get('chapters_keyword') . "\n\n- 00:00 Intro")) === 1,
+        'Browser language changes preserve chapter recognition in the configured content language.',
+    );
+    $test(
+        $config['language_code'] === $fallbackLocalization->languageCode()
+            && $config['site_description'] === $fallbackLocalization->get('site_description'),
+        'Browser language changes preserve configured feed metadata.',
+    );
+}
+$_SERVER = $savedServer;
+http_response_code(200);
 $test($german->get('cover_alt', ['title' => 'Test']) === 'Cover von Test', 'Localization replaces named placeholders.');
 $test(
     $german->formatEpisodeDate(new DateTimeImmutable('2025-01-01T10:05:00+01:00')) === '01.01.2025, 10:05 Uhr',
@@ -47,6 +95,11 @@ $test(
 );
 
 $fixture = sys_get_temp_dir() . '/oprcast-test-' . bin2hex(random_bytes(4));
+mkdir($fixture . '/lang', 0777, true);
+file_put_contents($fixture . '/lang/en.php', '<?php return [];');
+file_put_contents($fixture . '/lang/en_GB.php', '<?php return [];');
+$test(Localization::browserLanguage('en-GB,en;q=0.8', 'de', $fixture . '/lang') === 'en_GB', 'Browser selection prefers an installed regional catalogue over its base language.');
+$test(Localization::browserLanguage('en-US', 'de', $fixture . '/lang') === 'en', 'Browser selection falls back from a missing regional catalogue to its installed base language.');
 mkdir($fixture . '/test-cast', 0777, true);
 file_put_contents($fixture . '/test-cast/cover.jpg', 'fixture');
 file_put_contents($fixture . '/test-cast/episode.mp3', 'fixture-audio');

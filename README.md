@@ -95,7 +95,9 @@ Feeds and chapter files use content-based ETags for conditional requests. Modifi
 
 ## Localization
 
-The `language` setting in `system/config/site.php` selects the CMS language. Its value is the filename below `system/lang` without the `.php` extension; for example, `de` loads `system/lang/de.php`. German and English translations are included.
+The CMS language is selected on each request from the browser's `Accept-Language` header. Supported languages are tried in preference order (including `q` weights); regional variants such as `en-US` fall back to the base language `en`. Missing, invalid, or unsupported browser preferences fall back to the `language` setting in `system/config/site.php`. Its value is the filename below `system/lang` without the `.php` extension; for example, `de` loads `system/lang/de.php`. German and English translations are included. HTML responses declare `Vary: Accept-Language` for caches.
+
+The configured language continues to determine feed metadata and the Markdown chapter heading, independently of the browser language.
 
 Language files are PHP arrays containing simple string key-value pairs. In addition to the visible layout strings and ARIA labels, each file defines the site description, the language code for the HTML `lang` attribute, the date and time formats used for episodes, and the level-two Markdown heading that introduces chapter timestamps (`Kapitel` or `Chapters`). Copy an existing file to add another CMS language and keep all keys intact.
 

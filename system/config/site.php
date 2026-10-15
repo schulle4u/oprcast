@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 return [
     'title' => 'OPRCast',
-    // Selects the matching CMS translation in system/lang/{language}.php.
+    // Fallback CMS translation in system/lang/{language}.php when browser detection fails.
+    // Also determines feed metadata and the chapter heading used in Markdown content.
     'language' => 'de',
     'timezone' => 'Europe/Berlin',
     // Set this in production, for example: https://podcasts.example.org
