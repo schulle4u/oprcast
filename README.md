@@ -21,6 +21,8 @@ Open `http://localhost:8000`. For production, point the web root at this directo
 
 ## Content
 
+See the complete metadata reference in [English](docs/metadata.md) or [German](docs/metadata-de.md) for every supported series and episode field, including optional metadata, defaults, media handling, and feed output.
+
 Create `content/my-podcast/index.md`:
 
 ```markdown
