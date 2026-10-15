@@ -3,7 +3,7 @@ title: My News
 description: A daily roundup of the latest global news.
 language: en-US
 author: News team
-image:
+image: testcard.jpg
 category: News
 explicit: false
 type: episodic
