@@ -223,9 +223,31 @@ if (class_exists(XMLWriter::class)) {
     ob_start();
     $application->run();
     $homePage = (string) ob_get_clean();
-    $test(str_contains($homePage, '<h2 id="episodes-title">All episodes</h2>'), 'Home page lists all episodes.');
+    $test(str_contains($homePage, '<h2 id="episodes-title">Episodes of all podcasts</h2>'), 'Home page lists all episodes by default when show_home_episodes is absent.');
     $test(str_contains($homePage, 'https://example.test/test-cast/first/'), 'Home page links to episodes.');
     $test(str_contains($homePage, '<h1>Test Site</h1>'), 'Missing home.md falls back to the configured site title.');
+
+    foreach ([true, false] as $showHomeEpisodes) {
+        $configuredApplication = new Application(array_replace($appConfig, ['show_home_episodes' => $showHomeEpisodes]), $repository, $markdown, $feeds, $english);
+        $_SERVER['REQUEST_URI'] = '/';
+        ob_start();
+        $configuredApplication->run();
+        $configuredHomePage = (string) ob_get_clean();
+        $test(str_contains($configuredHomePage, 'id="episodes-title"') === $showHomeEpisodes, 'Homepage episode heading follows show_home_episodes.');
+        $test(str_contains($configuredHomePage, 'https://example.test/test-cast/first/') === $showHomeEpisodes, 'Homepage episode links follow show_home_episodes.');
+        $test(str_contains($configuredHomePage, 'id="series-title"') && str_contains($configuredHomePage, '<h1>Test Site</h1>'), 'Homepage introduction and series remain visible for either episode setting.');
+        foreach ([
+            '/feed.xml' => '<source url="https://example.test/test-cast/feed.xml">Test Cast</source>',
+            '/test-cast/' => 'https://example.test/test-cast/first/',
+            '/test-cast/first/' => '<h1>First episode</h1>',
+        ] as $path => $expectedContent) {
+            $_SERVER['REQUEST_URI'] = $path;
+            ob_start();
+            $configuredApplication->run();
+            $configuredBody = (string) ob_get_clean();
+            $test(http_response_code() === 200 && str_contains($configuredBody, $expectedContent), 'Publisher RSS, series and episode pages remain available for either homepage episode setting.');
+        }
+    }
 
     $_SERVER = ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/test-cast/first/', 'SCRIPT_NAME' => '/index.php', 'HTTP_HOST' => 'example.test'];
     ob_start();

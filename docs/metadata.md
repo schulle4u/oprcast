@@ -183,6 +183,8 @@ The HTML meta description and meta RSS channel description come from `descriptio
 
 ## Global configuration and generated values
 
+The publisher homepage displays an HTML list of episodes from all series by default. To hide this list, set `'show_home_episodes' => false,` in `system/config/site.php`; set it to `true` to show it again. If the setting is absent, the list remains enabled. The homepage introduction and series overview, individual series and episode pages, and all RSS, Atom, and JSON feeds remain available.
+
 The following settings in [system/config/site.php](../system/config/site.php) affect publication. They do not belong in front matter:
 
 | Setting | Default / source | Effect |
@@ -193,6 +195,7 @@ The following settings in [system/config/site.php](../system/config/site.php) af
 | `base_url` | `OPRCAST_BASE_URL`, otherwise derived from the request | Canonical base for page, feed, chapter, and local media URLs. Configure explicitly for production. |
 | `cdn_url` | `OPRCAST_CDN_URL`, otherwise no CDN | Base URL for relative media paths. |
 | `content_path` | Project directory plus `/content` | Root directory for series and static pages. |
+| `show_home_episodes` | `true` | Show the HTML episode list across all series on the publisher homepage. Set to `false` to hide it. |
 | `feed_limit` | `100` | Maximum entries per feed, including meta RSS. |
 | `development` | `OPRCAST_DEBUG`, otherwise `false` | Controls detailed error messages; not published podcast metadata. |
 

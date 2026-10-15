@@ -60,7 +60,7 @@ final class Application
             $this->html('home', [
                 'homePage' => $this->repository->homePage(),
                 'seriesList' => $this->repository->series(),
-                'episodes' => $this->repository->allEpisodes(),
+                'episodes' => ($this->config['show_home_episodes'] ?? true) ? $this->repository->allEpisodes() : [],
             ]);
             return;
         }

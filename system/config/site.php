@@ -13,6 +13,8 @@ return [
     // Optional base URL for relative media paths, for example: https://cdn.podcast.org/
     'cdn_url' => getenv('OPRCAST_CDN_URL') ?: null,
     'content_path' => dirname(__DIR__, 2) . '/content',
+    // Show the HTML list of all episodes on the publisher homepage.
+    'show_home_episodes' => true,
     'feed_limit' => 100,
     'development' => filter_var(getenv('OPRCAST_DEBUG') ?: 'false', FILTER_VALIDATE_BOOL),
 ];

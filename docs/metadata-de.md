@@ -183,6 +183,8 @@ Die HTML-Metabeschreibung und die Kanalbeschreibung des Meta-RSS stammen aus `de
 
 ## Globale Konfiguration und automatisch erzeugte Angaben
 
+Die Publisher-Startseite zeigt standardmäßig eine HTML-Liste der Episoden aller Serien. Zum Ausblenden in `system/config/site.php` den Eintrag `'show_home_episodes' => false,` setzen; mit `true` wird die Liste wieder eingeblendet. Fehlt die Einstellung, bleibt die Liste aktiviert. Einleitung und Serienübersicht der Startseite, einzelne Serien- und Episodenseiten sowie alle RSS-, Atom- und JSON-Feeds bleiben verfügbar.
+
 In [system/config/site.php](../system/config/site.php) beeinflussen folgende Einstellungen die Veröffentlichung. Sie gehören nicht in das Front Matter:
 
 | Einstellung | Standard / Herkunft | Wirkung |
@@ -193,6 +195,7 @@ In [system/config/site.php](../system/config/site.php) beeinflussen folgende Ein
 | `base_url` | `OPRCAST_BASE_URL`, sonst aus der Anfrage | Kanonische Basis für Seiten-, Feed-, Kapitel- und lokale Medien-URLs. Für Produktion ausdrücklich konfigurieren. |
 | `cdn_url` | `OPRCAST_CDN_URL`, sonst kein CDN | Basis-URL für relative Medienpfade. |
 | `content_path` | Projektverzeichnis plus `/content` | Wurzel der Serien und statischen Seiten. |
+| `show_home_episodes` | `true` | HTML-Episodenliste aller Serien auf der Publisher-Startseite anzeigen. Mit `false` ausblenden. |
 | `feed_limit` | `100` | Maximale Anzahl der Einträge je Feed, auch im Meta-RSS. |
 | `development` | `OPRCAST_DEBUG`, sonst `false` | Steuert die Anzeige detaillierter Fehlermeldungen; kein veröffentlichtes Podcast-Metadatum. |
 
