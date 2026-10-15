@@ -171,13 +171,15 @@ Die Tabellen oben nennen die genauen Zielfelder. Ergänzend gelten folgende Unte
 | --- | --- |
 | Serien-RSS `/{serie}/feed.xml` | Serienmetadaten und Shows mit iTunes-Feldern, HTML-Shownotes und Kapitelverweisen. Primäres Audio gemäß `default_format`; alle Varianten zusätzlich als `podcast:alternateEnclosure`. |
 | Format-RSS `/{serie}/feed.{format}.xml` | Gleiche Metadaten; primäres Enclosure und als Standard markierte Alternative entsprechen dem angeforderten, für die Serie aktivierten Format. |
-| Meta-RSS `/feed.xml` | Shows aller Serien mit denselben Show-Feldern wie Serien-RSS, zusätzlich Serienautor und `source` mit Serientitel und Serienfeed-URL. Kanal-Titel, Beschreibung und Sprache stammen aus der Site-Konfiguration beziehungsweise deren Sprachdatei; Seriencover, Kategorien, Serien-Copyright und Serientyp werden nicht als eigene Kanalmetadaten übernommen. |
+| Meta-RSS `/feed.xml` | Shows aller Serien mit denselben Show-Feldern wie Serien-RSS, zusätzlich Serienautor und `source` mit Serientitel und Serienfeed-URL. Kanal-Titel und Sprache stammen aus der Site-Konfiguration beziehungsweise deren Sprachdatei, die Beschreibung aus `content/pages/home.md`; Seriencover, Kategorien, Serien-Copyright und Serientyp werden nicht als eigene Kanalmetadaten übernommen. |
 | Atom `/{serie}/feed.atom` | Serientitel, Serien-URL als ID und Serienautor; pro Show Titel, GUID, Veröffentlichungs-/Änderungszeit, URL, HTML-Shownotes und alle Audio-Enclosures. Keine separaten Kurzbeschreibungen, Cover, Kategorien oder iTunes-Felder. |
 | JSON Feed `/{serie}/feed.json` | Serientitel, Beschreibung, Sprache und Cover als `icon`; pro Show GUID, URL, Titel, Shownotes, Kurzbeschreibung, Veröffentlichungsdatum und alle Audio-Attachments einschließlich Dauer in Sekunden. Keine separaten Autoren-, Staffel-, Folgen-, Copyright- oder Explicit-Felder. |
 
 Alle Feeds sind auf `feed_limit` Einträge begrenzt (standardmäßig `100`), neueste Shows zuerst. Der HTML-Audioplayer bietet Quellen in der Reihenfolge von `formats` an; `default_format` sortiert diese Liste nicht um.
 
-Die HTML-Metabeschreibung im Seitenkopf stammt durchgehend aus `site_description` der aktiven CMS-Übersetzung. Die `description` einer Serie oder Show ersetzt dieses HTML-Meta-Tag nicht.
+Die Einleitung oberhalb der Serienliste lässt sich mit `content/pages/home.md` gestalten. Das Front Matter kann `title` und `description` enthalten; der Markdown-Inhalt erscheint unter dem Titel. Die Datei erscheint nicht zusätzlich in der Navigation. Ohne Datei wird der konfigurierte Website-Titel angezeigt.
+
+Die HTML-Metabeschreibung und die Kanalbeschreibung des Meta-RSS stammen aus `description` in `content/pages/home.md`, ersatzweise aus dessen Markdown-Inhalt als Klartext. Ohne Datei bleiben die Beschreibungen leer. Die `description` einer Serie oder Show ersetzt dieses HTML-Meta-Tag nicht. Der Inhalt von `home.md` bleibt unabhängig von der Browsersprache.
 
 ## Globale Konfiguration und automatisch erzeugte Angaben
 
@@ -194,7 +196,7 @@ In [system/config/site.php](../system/config/site.php) beeinflussen folgende Ein
 | `feed_limit` | `100` | Maximale Anzahl der Einträge je Feed, auch im Meta-RSS. |
 | `development` | `OPRCAST_DEBUG`, sonst `false` | Steuert die Anzeige detaillierter Fehlermeldungen; kein veröffentlichtes Podcast-Metadatum. |
 
-Beim Start werden außerdem `media_formats` aus `media.php`, `language_code` und `site_description` aus der konfigurierten Sprachdatei ergänzt. Website-Sprache und HTML-`lang` folgen den Browserpräferenzen mit Rückfall auf die konfigurierte Sprache; die Feed-Metadaten bleiben davon unabhängig.
+Beim Start werden außerdem `media_formats` aus `media.php` und `language_code` aus der konfigurierten Sprachdatei ergänzt. Website-Sprache und HTML-`lang` folgen den Browserpräferenzen mit Rückfall auf die konfigurierte Sprache; die Feed-Metadaten bleiben davon unabhängig.
 
 Folgende Datensatzfelder erzeugt der Publisher automatisch; sie sind keine zusätzlichen redaktionellen Eingabefelder:
 

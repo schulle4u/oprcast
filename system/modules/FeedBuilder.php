@@ -135,7 +135,8 @@ final class FeedBuilder
         $feedUrl = $this->url($baseUrl, 'feed.xml');
         $this->element($xml, 'title', (string) ($this->config['title'] ?? 'OPRCast'));
         $this->element($xml, 'link', $homeUrl);
-        $this->element($xml, 'description', (string) ($this->config['site_description'] ?? ''));
+        $homePage = $repository->homePage();
+        $this->element($xml, 'description', (string) ($homePage['description'] ?? $this->markdown->text($homePage['body'] ?? '')));
         $this->element($xml, 'language', (string) ($this->config['language_code'] ?? $this->config['language'] ?? 'en'));
         $this->element($xml, 'lastBuildDate', $this->latestModified($seriesList, $episodes)->format(DateTimeInterface::RFC2822));
         $xml->startElement('atom:link');

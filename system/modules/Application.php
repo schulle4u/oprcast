@@ -58,6 +58,7 @@ final class Application
     {
         if ($path === '/') {
             $this->html('home', [
+                'homePage' => $this->repository->homePage(),
                 'seriesList' => $this->repository->series(),
                 'episodes' => $this->repository->allEpisodes(),
             ]);
@@ -135,6 +136,13 @@ final class Application
         $data['config'] = $this->config;
         $data['baseUrl'] = $this->baseUrl();
         $data['pages'] = $template === 'error' ? [] : $this->repository->pages(true);
+        $data['siteDescription'] = '';
+        foreach ($data['pages'] as $navigationPage) {
+            if ($navigationPage['slug'] === 'home') {
+                $data['siteDescription'] = $navigationPage['description'] ?? $this->markdown->text($navigationPage['body']);
+            }
+        }
+        $data['pages'] = array_values(array_filter($data['pages'], static fn (array $page): bool => $page['slug'] !== 'home'));
         $data['repository'] = $this->repository;
         $data['markdown'] = $this->markdown;
         $data['localization'] = $this->localization;

@@ -81,8 +81,7 @@ foreach (['en-US,en;q=0.9' => 'en', 'de-DE,de;q=0.9' => 'de-DE', 'fr-FR' => $fal
         'Browser language changes preserve chapter recognition in the configured content language.',
     );
     $test(
-        $config['language_code'] === $fallbackLocalization->languageCode()
-            && $config['site_description'] === $fallbackLocalization->get('site_description'),
+        $config['language_code'] === $fallbackLocalization->languageCode(),
         'Browser language changes preserve configured feed metadata.',
     );
 }
@@ -226,6 +225,7 @@ if (class_exists(XMLWriter::class)) {
     $homePage = (string) ob_get_clean();
     $test(str_contains($homePage, '<h2 id="episodes-title">All episodes</h2>'), 'Home page lists all episodes.');
     $test(str_contains($homePage, 'https://example.test/test-cast/first/'), 'Home page links to episodes.');
+    $test(str_contains($homePage, '<h1>Test Site</h1>'), 'Missing home.md falls back to the configured site title.');
 
     $_SERVER = ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/test-cast/first/', 'SCRIPT_NAME' => '/index.php', 'HTTP_HOST' => 'example.test'];
     ob_start();
@@ -343,6 +343,25 @@ if (class_exists(XMLWriter::class)) {
     $previousLog = ini_get('error_log');
     ini_set('error_log', $fixture . '/errors.log');
     mkdir($fixture . '/pages');
+    file_put_contents($fixture . '/pages/home.md', "---\ntitle: Welcome & hello\ndescription: Independent & personal\n---\nOur **podcasts**.\n\n[About us](/pages/valid/)\n\n<script>alert(1)</script>");
+    [$status, $body] = $request('/');
+    $test($status === 200 && str_contains($body, '<h1>Welcome &amp; hello</h1>') && str_contains($body, '<strong>podcasts</strong>'), 'Homepage renders home.md title and Markdown.');
+    $test(strpos($body, '<strong>podcasts</strong>') < strpos($body, 'id="series-title"'), 'Homepage content appears above the series list.');
+    $test(str_contains($body, '<a href="/pages/valid/">About us</a>') && !str_contains($body, '<script>'), 'Homepage content uses the safe Markdown renderer.');
+    $test(!str_contains($body, '/pages/home/'), 'Home content is excluded from navigation.');
+    $test(str_contains($body, '<meta name="description" content="Independent &amp; personal">'), 'Homepage front matter supplies the HTML meta description.');
+    [$status, $body] = $request('/feed.xml');
+    $test(str_contains($body, '<description>Independent &amp; personal</description>'), 'Homepage description supplies the publisher feed description.');
+    file_put_contents($fixture . '/pages/home.md', 'A **personal** introduction.');
+    [$status, $body] = $request('/');
+    $test($status === 200 && str_contains($body, '<strong>personal</strong>') && str_contains($body, 'content="A personal introduction."'), 'Home content works without front matter and provides a plain text description.');
+    [$status, $body] = $request('/feed.xml');
+    $test(str_contains($body, '<description>A personal introduction.</description>'), 'Publisher feed falls back to the plain text home body.');
+    file_put_contents($fixture . '/pages/home.md', "---\ntitle:\n  - Invalid title\n---\nIntroduction");
+    [$status, $body] = $request('/');
+    $test($status === 500 && substr_count($body, '<!doctype html>') === 1, 'Invalid home content returns a complete error page.');
+    $test((new Validator())->validate($repository) !== [], 'Home content is included in validation.');
+    unlink($fixture . '/pages/home.md');
     file_put_contents($fixture . '/pages/broken.md', "---\ntitle: Broken\nmalformed front matter\n---\nBroken page");
     file_put_contents($fixture . '/pages/valid.md', "---\ntitle: Valid page\n---\nValid body");
     [$status, $body] = $request('/');

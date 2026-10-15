@@ -31,7 +31,6 @@ $config['media_formats'] = require __DIR__ . '/config/media.php';
 date_default_timezone_set($config['timezone']);
 $contentLocalization = new Localization((string) $config['language'], __DIR__ . '/lang');
 $config['language_code'] = $contentLocalization->languageCode();
-$config['site_description'] = $contentLocalization->get('site_description');
 $language = Localization::browserLanguage(
     (string) ($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? ''),
     (string) $config['language'],

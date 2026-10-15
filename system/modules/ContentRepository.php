@@ -178,6 +178,16 @@ final class ContentRepository
     }
 
     /**
+     * Returns the optional homepage content using the regular page parser.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function homePage(): ?array
+    {
+        return is_file($this->root . '/pages/home.md') ? $this->page('home') : null;
+    }
+
+    /**
      * Finds a standalone page by slug.
      *
      * @return array<string, mixed>

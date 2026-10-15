@@ -171,13 +171,15 @@ The tables above list the exact destination fields. The following differences al
 | --- | --- |
 | Series RSS `/{series}/feed.xml` | Series metadata and shows with iTunes fields, HTML show notes, and chapter references. Primary audio follows `default_format`; all variants are also included as `podcast:alternateEnclosure`. |
 | Format RSS `/{series}/feed.{format}.xml` | Same metadata; the primary enclosure and the alternative marked as default match the requested format enabled for the series. |
-| Meta RSS `/feed.xml` | Shows from all series with the same show fields as series RSS, plus the series author and `source` containing the series title and series feed URL. Channel title, description, and language come from the site configuration or its language file; series artwork, categories, series copyright, and series type are not included as separate channel metadata. |
+| Meta RSS `/feed.xml` | Shows from all series with the same show fields as series RSS, plus the series author and `source` containing the series title and series feed URL. Channel title and language come from the site configuration or its language file; the description comes from `content/pages/home.md`; series artwork, categories, series copyright, and series type are not included as separate channel metadata. |
 | Atom `/{series}/feed.atom` | Series title, series URL as ID, and series author; each show includes its title, GUID, publication/modification times, URL, HTML show notes, and all audio enclosures. No separate summaries, artwork, categories, or iTunes fields. |
 | JSON Feed `/{series}/feed.json` | Series title, description, language, and artwork as `icon`; each show includes its GUID, URL, title, show notes, summary, publication date, and all audio attachments including duration in seconds. No separate author, season, episode number, copyright, or explicit fields. |
 
 All feeds are limited to `feed_limit` entries (default `100`), newest shows first. The HTML audio player offers sources in the order of `formats`; `default_format` does not reorder that list.
 
-The HTML meta description in the page head always comes from `site_description` in the active CMS translation. A series or show's `description` does not replace this HTML meta tag.
+Customize the introduction above the series list with `content/pages/home.md`. Its front matter can contain `title` and `description`; the Markdown body appears below the title. The file is excluded from navigation. Without the file, the configured website title is displayed.
+
+The HTML meta description and meta RSS channel description come from `description` in `content/pages/home.md`, falling back to its Markdown body converted to plain text. Without the file, these descriptions are empty. A series or show's `description` does not replace this HTML meta tag. Homepage content remains independent of the browser language.
 
 ## Global configuration and generated values
 
@@ -194,7 +196,7 @@ The following settings in [system/config/site.php](../system/config/site.php) af
 | `feed_limit` | `100` | Maximum entries per feed, including meta RSS. |
 | `development` | `OPRCAST_DEBUG`, otherwise `false` | Controls detailed error messages; not published podcast metadata. |
 
-Startup also adds `media_formats` from `media.php`, and `language_code` and `site_description` from the configured language file. The website language and HTML `lang` follow browser preferences with a fallback to the configured language; feed metadata remains independent of these preferences.
+Startup also adds `media_formats` from `media.php` and `language_code` from the configured language file. The website language and HTML `lang` follow browser preferences with a fallback to the configured language; feed metadata remains independent of these preferences.
 
 The publisher generates the following record fields automatically; they are not additional editorial input fields:
 

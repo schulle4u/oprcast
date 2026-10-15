@@ -8,7 +8,7 @@ $documentTitle = isset($title) ? $title . ' – ' . $siteTitle : (($episode['tit
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light dark">
-    <meta name="description" content="<?php echo htmlspecialchars($localization->get('site_description'), ENT_QUOTES, 'UTF-8'); ?>">
+    <meta name="description" content="<?php echo htmlspecialchars($siteDescription, ENT_QUOTES, 'UTF-8'); ?>">
     <title><?php echo htmlspecialchars((string) $documentTitle, ENT_QUOTES, 'UTF-8'); ?></title>
     <link rel="stylesheet" href="<?php echo htmlspecialchars($baseUrl, ENT_QUOTES, 'UTF-8'); ?>/assets/theme.css">
 <?php if (isset($series)): ?>

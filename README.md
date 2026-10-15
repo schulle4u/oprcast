@@ -89,6 +89,19 @@ For the MP3 format this produces `https://cdn.podcast.org/mypodcast/first-episod
 
 Static pages such as an imprint can be placed in `content/pages/imprint.md`; their front matter only needs a `title`.
 
+To customize the introduction above the homepage's series list, create `content/pages/home.md`:
+
+```markdown
+---
+title: Welcome to our podcasts
+description: Independent podcasts about the things we care about.
+---
+
+Discover our **podcasts**, meet the hosts, and find your next episode.
+```
+
+The title and Markdown body replace the default introduction. Without this file, the homepage displays the configured site title. `home.md` is omitted from navigation, while remaining accessible at `/pages/home/`. Its optional `description` supplies the site's HTML meta description and publisher RSS description; if omitted, the Markdown body is converted to plain text. Without `home.md`, these descriptions are empty. Homepage content is also displayed when no series have been published yet.
+
 Supported front matter values are strings, integers, booleans, and simple lists. Supported Markdown includes headings, paragraphs, ordered and unordered lists, links, emphasis, blockquotes, inline code, and fenced code blocks. Raw HTML is escaped intentionally.
 
 Metadata fields are type-checked when loaded: text fields must be strings, `explicit` must be a boolean, and episode/season numbers and audio lengths must be positive integers. Publication dates accept `YYYY-MM-DD` or `YYYY-MM-DDTHH:MM:SS` followed by `Z` or an offset such as `+02:00`. Invalid calendar dates and relative expressions are rejected. If `date` is omitted, the date in the episode filename is used.
@@ -101,7 +114,7 @@ The CMS language is selected on each request from the browser's `Accept-Language
 
 The configured language continues to determine feed metadata and the Markdown chapter heading, independently of the browser language.
 
-Language files are PHP arrays containing simple string key-value pairs. In addition to the visible layout strings and ARIA labels, each file defines the site description, the language code for the HTML `lang` attribute, the date and time formats used for episodes, and the level-two Markdown heading that introduces chapter timestamps (`Kapitel` or `Chapters`). Copy an existing file to add another CMS language and keep all keys intact.
+Language files are PHP arrays containing simple string key-value pairs. In addition to the visible layout strings and ARIA labels, each file defines the language code for the HTML `lang` attribute, the date and time formats used for episodes, and the level-two Markdown heading that introduces chapter timestamps (`Kapitel` or `Chapters`). Publisher content is maintained in `content/pages/home.md`, independently of the browser language. Copy an existing file to add another CMS language and keep all keys intact.
 
 ## Validate and test
 

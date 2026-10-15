@@ -1,7 +1,8 @@
-<header class="hero">
-    <p class="eyebrow"><?php echo htmlspecialchars($localization->get('publisher_name'), ENT_QUOTES, 'UTF-8'); ?></p>
-    <h1><?php echo htmlspecialchars($config['title'], ENT_QUOTES, 'UTF-8'); ?></h1>
-    <p><?php echo htmlspecialchars($localization->get('site_description'), ENT_QUOTES, 'UTF-8'); ?></p>
+<header class="hero prose">
+    <h1><?php echo htmlspecialchars($homePage['title'] ?? $config['title'], ENT_QUOTES, 'UTF-8'); ?></h1>
+<?php if ($homePage !== null): ?>
+    <?php echo $homePage['html']; ?>
+<?php endif; ?>
 </header>
 <?php if ($seriesList === []): ?>
 <section class="empty-state" aria-labelledby="empty-title">
