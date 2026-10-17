@@ -17,6 +17,8 @@ return [
     'podcast' => 'Podcast',
     'chapters_keyword' => 'Chapters',
     'cover_alt' => 'Cover of {title}',
+    'subscribe_button' => 'Subscribe',
+    'feed_links' => 'Feed links',
     'episodes' => 'Episodes',
     'all_episodes' => 'Episodes of all podcasts',
     'no_episodes' => 'No episodes published yet.',
