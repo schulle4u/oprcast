@@ -13,7 +13,7 @@
 body { margin: 0; color: var(--text); background: var(--background); }
 a { color: var(--accent); text-underline-offset: .18em; }
 a:hover { text-decoration-thickness: .14em; }
-a:focus-visible, audio:focus-visible { outline: .2rem solid var(--accent); outline-offset: .2rem; }
+a:focus-visible, audio:focus-visible, summary:focus-visible { outline: .2rem solid var(--accent); outline-offset: .2rem; }
 .skip-link { position: fixed; top: -5rem; left: 1rem; z-index: 2; padding: .7rem 1rem; color: var(--surface); background: var(--text); }
 .skip-link:focus { top: 1rem; }
 .site-header, .site-footer, .container { width: min(72rem, calc(100% - 2rem)); margin-inline: auto; }
@@ -32,9 +32,49 @@ h3 { margin-block: .2rem; font-size: 1.25rem; }
 .podcast-header { display: grid; grid-template-columns: minmax(10rem, 20rem) 1fr; align-items: center; gap: clamp(1.5rem, 5vw, 4rem); }
 .podcast-header img { width: 100%; height: auto; border-radius: .8rem; }
 .episode-list { padding: 0; list-style: none; }
-.episode-list li { padding-block: 1.5rem; border-top: 1px solid var(--border); }
-.prose { max-width: 46rem; }
+.episode-list > li { padding-block: 1.5rem; border-top: 1px solid var(--border); }
+
+/* Markdown content: keep long links, tables and code within the text column. */
+.prose { max-width: 46rem; min-width: 0; overflow-wrap: anywhere; }
+.prose > :first-child { margin-top: 0; }
+.prose > :last-child { margin-bottom: 0; }
+.prose h1 { margin-block: 2.5rem 1rem; font-size: clamp(2rem, 5vw, 3rem); line-height: 1.15; letter-spacing: -.03em; }
+.prose h2, .prose h3, .prose h4, .prose h5, .prose h6 { margin-block: 2rem .75rem; line-height: 1.3; }
+.prose h4 { font-size: 1.1rem; }
+.prose h5, .prose h6 { font-size: 1rem; }
+.prose h6 { color: var(--muted); }
+.prose :is(h1, h2, h3, h4, h5, h6)[id] { scroll-margin-top: 1.5rem; }
+.prose p, .prose ul, .prose ol { margin-block: 1rem; }
+.prose ul, .prose ol { padding-inline-start: 1.5rem; }
+.prose li + li { margin-top: .35rem; }
+.prose li > ul, .prose li > ol { margin-block: .35rem; }
+.prose li > p { margin-block: .5rem; }
+.prose blockquote { margin: 1.5rem 0; padding: .25rem 1.25rem; border-inline-start: .25rem solid var(--accent); color: var(--muted); background: var(--surface); }
+.prose blockquote > :first-child { margin-top: .5rem; }
+.prose blockquote > :last-child { margin-bottom: .5rem; }
+.prose hr { margin-block: 2rem; border: 0; border-top: 1px solid var(--border); }
 .prose img { max-width: 100%; height: auto; }
+.prose table { display: block; width: fit-content; max-width: 100%; overflow-x: auto; margin-block: 1.5rem; border-collapse: collapse; }
+.prose th, .prose td { padding: .65rem 1rem; border: 1px solid var(--border); vertical-align: top; }
+.prose th { text-align: start; font-weight: 700; background: var(--surface); }
+.prose tbody tr:nth-child(even) { background: var(--surface); }
+.prose :not(pre) > code { padding: .1em .35em; border: 1px solid var(--border); border-radius: .25rem; background: var(--surface); font-size: .9em; }
+.prose pre { max-width: 100%; margin-block: 1.5rem; border-radius: .4rem; overflow-wrap: normal; }
+.prose pre code { padding: 0; border: 0; background: transparent; font-size: .9em; }
+
+/* Native disclosures work in layouts as well as inside a prose container. */
+details { min-width: 0; margin-block: 1rem; padding: 1rem; border: 1px solid var(--border); border-radius: .6rem; background: var(--surface); overflow-wrap: anywhere; }
+details > summary { margin: -1rem; padding: .85rem 1rem; border-radius: .6rem; cursor: pointer; font-weight: 700; }
+details > summary::marker { color: var(--accent); }
+details > summary:hover { color: var(--accent); }
+details[open] > summary { margin-bottom: 1rem; border-bottom: 1px solid var(--border); border-end-start-radius: 0; border-end-end-radius: 0; }
+details > :last-child:not(summary) { margin-bottom: 0; }
+details details { background: var(--background); }
+details nav ul, nav details ul { display: block; }
+details nav li + li, nav details li + li { margin-top: .5rem; }
+details nav a, nav details a { display: block; padding: .35rem .5rem; border-radius: .25rem; }
+details nav a:hover, nav details a:hover { background: var(--background); }
+
 audio { width: min(100%, 46rem); margin-block: 1.5rem; }
 .audio-downloads { margin-top: -1rem; }
 code, pre { font-family: ui-monospace, monospace; }
