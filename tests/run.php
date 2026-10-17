@@ -31,6 +31,51 @@ $rendered = $markdown->render("## Heading\n\nHello **world**.\n\n<script>alert(1
 $test(str_contains($rendered, '<h2 id="heading">Heading</h2>'), 'Markdown renders headings.');
 $test(str_contains($rendered, '<strong>world</strong>'), 'Markdown renders strong text.');
 $test(!str_contains($rendered, '<script>'), 'Markdown escapes raw HTML.');
+foreach ([
+    ["Heading\n=======", '<h1 id="heading">Heading</h1>'],
+    ["Subheading\n----------", '<h2 id="subheading">Subheading</h2>'],
+    ['#No heading', '<p>#No heading</p>'],
+    ['## !!!', '<h2 id="abschnitt">!!!</h2>'],
+    ["- Parent\n  - Child", "<ul>\n<li>Child</li>\n</ul>"],
+    ["3. Third\n4. Fourth", '<ol start="3">'],
+    ["| Name | Value |\n| --- | --- |\n| **Test** | 42 |", '<td><strong>Test</strong></td>'],
+    ["[Publisher][site]\n\n[site]: https://example.test/ \"Title\"", '<a href="https://example.test/" title="Title">Publisher</a>'],
+    ['![Cover](cover.jpg "Podcast")', '<img src="cover.jpg" alt="Cover" title="Podcast" />'],
+    ['_emphasis_ and **bold _nested_** and ~~removed~~', '<strong>bold <em>nested</em></strong>'],
+    ['~~removed~~', '<del>removed</del>'],
+    ["First  \nSecond", "First<br />\nSecond"],
+    ["---", '<hr />'],
+    ["> First\n>\n> Second", "<blockquote>\n<p>First</p>\n<p>Second</p>\n</blockquote>"],
+    ["~~~php\n<?php echo '<tag>';\n~~~", '<code class="language-php">&lt;?php echo \'&lt;tag&gt;\';</code>'],
+    ["    <indented>", '<pre><code>&lt;indented&gt;</code></pre>'],
+    ["```\nunclosed", "<pre><code>\nunclosed</code></pre>"],
+    ['`**literal**`', '<code>**literal**</code>'],
+    ['[**bold**](https://example.test/)', '<a href="https://example.test/"><strong>bold</strong></a>'],
+] as [$source, $expected]) {
+    $test(str_contains($markdown->render($source), $expected), 'Parsedown renders syntax: ' . $source);
+}
+$test(
+    $markdown->render("## Heading\r\n\r\nParagraph") === $markdown->render("## Heading\n\nParagraph"),
+    'Markdown normalizes Windows line endings.',
+);
+foreach ([
+    '<img src="x" onerror="alert(1)">',
+    '[unsafe](javascript:alert%281%29)',
+    '![unsafe](javascript:alert%281%29)',
+    '[unsafe](data:text/html;base64,PHNjcmlwdD4=)',
+    '- [unsafe](javascript:alert%281%29)',
+    '> [unsafe](javascript:alert%281%29)',
+    "| Link |\n| --- |\n| [unsafe](javascript:alert%281%29) |",
+] as $source) {
+    $html = $markdown->render($source);
+    $test(
+        !str_contains($html, '<img src="x"') && preg_match('/(?:href|src)="(?:javascript:|data:text\/html)/i', $html) !== 1,
+        'Markdown safe mode sanitizes raw HTML and unsafe links, including nested elements.',
+    );
+}
+$markdown->render("[private]: https://example.test/private");
+$test($markdown->render('[private]') === '<p>[private]</p>', 'Reference definitions do not leak between documents.');
+$test($markdown->text('A **bold** [link](https://example.test/) & `code`.') === 'A bold link & code.', 'Markdown still supplies decoded plain text summaries.');
 $chapters = $markdown->chapters("## Kapitel\n\n- 00:00 Intro\n- 01:02 Thema");
 $test(count($chapters) === 2 && $chapters[1]['startTime'] === 62, 'Markdown extracts chapters.');
 $english = new Localization('en', dirname(__DIR__) . '/system/lang');
@@ -119,6 +164,10 @@ formats:
 default_format: mp3
 ---
 About this podcast.
+
+| Format | Notes |
+| --- | --- |
+| Audio | **Stereo** |
 MD);
 file_put_contents($fixture . '/test-cast/2025-01-01-first.md', <<<'MD'
 ---
@@ -132,6 +181,13 @@ episode_type: full
 explicit: false
 ---
 Episode notes.
+
+[Publisher][publisher]
+
+[publisher]: https://example.test/
+
+- Parent
+  - Child
 
 ## Kapitel
 
@@ -147,6 +203,8 @@ $repository = new ContentRepository($fixture, $frontMatter, $markdown, $mediaFor
 $series = $repository->seriesBySlug('test-cast');
 $episodes = $repository->episodes('test-cast');
 $test($series['title'] === 'Test Cast', 'Repository loads a series.');
+$test(str_contains($series['html'], '<td><strong>Stereo</strong></td>'), 'Repository renders series descriptions with Parsedown.');
+$test(str_contains($episodes[0]['html'], '<a href="https://example.test/">Publisher</a>') && substr_count($episodes[0]['html'], '<ul>') === 3, 'Repository renders episode descriptions with references and nested lists.');
 $test(count($episodes) === 1 && $episodes[0]['date'] instanceof DateTimeImmutable, 'Repository loads and normalizes episodes.');
 $allEpisodes = $repository->allEpisodes();
 $test(count($allEpisodes) === 1 && $allEpisodes[0]['series_title'] === 'Test Cast', 'Repository loads episodes across all series.');
@@ -192,6 +250,13 @@ if (class_exists(XMLWriter::class)) {
     $cdnRss = $feeds->rss($series, $episodes, 'https://example.test', $cdnRepository);
     $chaptersJson = json_decode($feeds->chapters($episodes[0]), true, flags: JSON_THROW_ON_ERROR);
     $test(simplexml_load_string($rss) !== false, 'RSS is well-formed XML.');
+    $rssDocument = simplexml_load_string($rss);
+    $rssContent = (string) $rssDocument->channel->item->children('http://purl.org/rss/1.0/modules/content/')->encoded;
+    $test($rssContent === $episodes[0]['html'], 'RSS preserves the full Parsedown show notes.');
+    $atomDocument = simplexml_load_string($atom);
+    $atomDocument->registerXPathNamespace('atom', 'http://www.w3.org/2005/Atom');
+    $test((string) $atomDocument->xpath('//atom:entry/atom:content')[0] === $episodes[0]['html'], 'Atom preserves the full Parsedown show notes.');
+    $test($json['items'][0]['content_html'] === $episodes[0]['html'], 'JSON Feed preserves the full Parsedown show notes.');
     $test(str_contains($rss, '<enclosure url="https://example.test/content/test-cast/episode.mp3" length="13" type="audio/mpeg"'), 'Default RSS uses the default enclosure.');
     $test(substr_count($rss, '<podcast:alternateEnclosure') === 2, 'RSS exposes all formats as alternate enclosures.');
     $test(str_contains($m4aRss, '<enclosure url="https://example.test/content/test-cast/episode.m4a"'), 'Format-specific RSS selects its enclosure.');
@@ -385,11 +450,16 @@ if (class_exists(XMLWriter::class)) {
     $test((new Validator())->validate($repository) !== [], 'Home content is included in validation.');
     unlink($fixture . '/pages/home.md');
     file_put_contents($fixture . '/pages/broken.md', "---\ntitle: Broken\nmalformed front matter\n---\nBroken page");
-    file_put_contents($fixture . '/pages/valid.md', "---\ntitle: Valid page\n---\nValid body");
+    file_put_contents($fixture . '/pages/valid.md', "---\ntitle: Valid page\n---\nValid body\n\n![Cover](cover.jpg)\n\n| Name |\n| --- |\n| **Static page** |");
     [$status, $body] = $request('/');
     $test($status === 200 && str_contains($body, 'Valid page') && !str_contains($body, '>Broken<'), 'Broken navigation pages do not disable the homepage or valid navigation.');
     [$status, $body] = $request('/pages/valid/');
     $test($status === 200 && str_contains($body, 'Valid body'), 'Valid static pages remain accessible alongside a broken page.');
+    $test(str_contains($body, '<img src="cover.jpg" alt="Cover" />') && str_contains($body, '<td><strong>Static page</strong></td>'), 'Static pages publish Parsedown images and tables.');
+    [$status, $body] = $request('/test-cast/');
+    $test($status === 200 && str_contains($body, '<td><strong>Stereo</strong></td>'), 'Series pages publish Parsedown descriptions.');
+    [$status, $body] = $request('/test-cast/first/');
+    $test($status === 200 && str_contains($body, '<a href="https://example.test/">Publisher</a>') && str_contains($body, "<ul>\n<li>Child</li>\n</ul>"), 'Episode pages publish Parsedown show notes.');
     [$status, $body] = $request('/pages/broken/');
     $test($status === 500 && substr_count($body, '<!doctype html>') === 1, 'Broken static pages produce a complete error page without recursion.');
     $test((new Validator())->validate($repository) !== [], 'Content validation includes static pages.');

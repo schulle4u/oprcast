@@ -155,7 +155,7 @@ Weitere Formate lassen sich in [system/config/media.php](../system/config/media.
 
 ## Markdown-Inhalt und Kapitel
 
-Der Show-Text nach dem Front Matter bildet die Shownotes auf der Website, RSS-`content:encoded`, Atom-`content` mit Typ `html` und JSON-`content_html`. Unterstützt werden Überschriften, Absätze, Listen, Links, Hervorhebungen, Blockzitate, Inline-Code und eingezäunte Codeblöcke. Rohes HTML wird maskiert.
+Der Show-Text nach dem Front Matter bildet die Shownotes auf der Website, RSS-`content:encoded`, Atom-`content` mit Typ `html` und JSON-`content_html`. Statische Seiten und Serientexte nutzen denselben mitgelieferten Parser Parsedown 1.8.0. Unterstützt werden ATX- und Setext-Überschriften, Absätze, verschachtelte Listen, Tabellen, Bilder, Inline- und Referenzlinks, Hervorhebungen, Durchstreichungen, Blockzitate, horizontale Linien, harte Zeilenumbrüche, Inline-Code sowie eingerückte oder eingezäunte Codeblöcke mit optionaler Sprachangabe. Überschriften erhalten Fragment-IDs; ATX-Überschriften benötigen ein Leerzeichen nach `#`. Der Safe Mode maskiert rohes HTML und filtert unsichere Linkschemata. Kurze `description`-Felder im Front Matter bleiben Klartext.
 
 Kapitel sind keine Front-Matter-Liste. Der Publisher extrahiert sie aus dem ersten passenden Markdown-Abschnitt mit einer Überschrift zweiter Ebene. Deren Name stammt aus `chapters_keyword` der konfigurierten CMS-Sprachdatei: standardmäßig `## Kapitel` bei `language: de` in der **Site-Konfiguration**, bei `en` entsprechend `## Chapters`. Die Sprache der Serie und die Browsersprache ändern diesen Schlüssel nicht.
 

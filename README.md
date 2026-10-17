@@ -59,7 +59,7 @@ episode_type: full
 explicit: false
 ---
 
-Episode notes with **basic Markdown**.
+Episode notes with **Markdown**.
 
 ## Kapitel
 
@@ -102,7 +102,9 @@ Discover our **podcasts**, meet the hosts, and find your next episode.
 
 The title and Markdown body replace the default introduction. Without this file, the homepage displays the configured site title. `home.md` is omitted from navigation, while remaining accessible at `/pages/home/`. Its optional `description` supplies the site's HTML meta description and publisher RSS description; if omitted, the Markdown body is converted to plain text. Without `home.md`, these descriptions are empty. Homepage content is also displayed when no series have been published yet.
 
-Supported front matter values are strings, integers, booleans, and simple lists. Supported Markdown includes headings, paragraphs, ordered and unordered lists, links, emphasis, blockquotes, inline code, and fenced code blocks. Raw HTML is escaped intentionally.
+Supported front matter values are strings, integers, booleans, and simple lists. Static pages (including the homepage introduction), series descriptions, and episode show notes use [Parsedown 1.8.0](https://github.com/erusev/parsedown/releases/tag/1.8.0). Supported Markdown includes ATX and Setext headings, nested ordered and unordered lists, tables, images, inline and reference links, emphasis, strikethrough, blockquotes, horizontal rules, hard line breaks, inline code, and indented or fenced code blocks with optional language hints. Headings retain fragment IDs; ATX headings require a space after `#`. Raw HTML is escaped and unsafe link schemes are filtered using Parsedown's safe mode. Short front matter `description` fields remain plain text.
+
+Parsedown is bundled with its MIT license in `system/vendor/parsedown/`; its PHP class is unmodified and needs no Composer installation. See the README in that directory for update instructions.
 
 Metadata fields are type-checked when loaded: text fields must be strings, `explicit` must be a boolean, and episode/season numbers and audio lengths must be positive integers. Publication dates accept `YYYY-MM-DD` or `YYYY-MM-DDTHH:MM:SS` followed by `Z` or an offset such as `+02:00`. Invalid calendar dates and relative expressions are rejected. If `date` is omitted, the date in the episode filename is used.
 

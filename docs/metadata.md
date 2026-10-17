@@ -155,7 +155,7 @@ Additional formats can be defined in [system/config/media.php](../system/config/
 
 ## Markdown content and chapters
 
-The show body after the front matter provides the show notes on the website, RSS `content:encoded`, Atom `content` with type `html`, and JSON `content_html`. Supported Markdown includes headings, paragraphs, lists, links, emphasis, blockquotes, inline code, and fenced code blocks. Raw HTML is escaped.
+The show body after the front matter provides the show notes on the website, RSS `content:encoded`, Atom `content` with type `html`, and JSON `content_html`. Static pages and series bodies use the same bundled Parsedown 1.8.0 parser. Supported Markdown includes ATX and Setext headings, paragraphs, nested lists, tables, images, inline and reference links, emphasis, strikethrough, blockquotes, horizontal rules, hard line breaks, inline code, and indented or fenced code blocks with optional language hints. Headings receive fragment IDs; ATX headings require a space after `#`. Raw HTML is escaped and unsafe link schemes are filtered using safe mode. Short front matter `description` fields remain plain text.
 
 Chapters are not a front matter list. The publisher extracts them from the first matching Markdown section with a level-two heading. Its name comes from `chapters_keyword` in the configured CMS language file: by default, `## Kapitel` with `language: de` in the **site configuration**, or `## Chapters` with `en`. Neither the series language nor the browser language changes this keyword.
 
