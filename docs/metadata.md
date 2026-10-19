@@ -82,6 +82,13 @@ For this example, each show must be available in all five formats. Remove any fo
 | `explicit` | Boolean | Optional; series value | Overrides the series default for this show in RSS `itunes:explicit`. A show value of `false` also overrides a series value of `true`. |
 | `audio_length_<format>` | Positive integer | Conditionally required per format | File size in bytes, such as `audio_length_mp3: 12345678`. Required if the corresponding audio file is not available locally; see the media section. |
 
+Additional optional episode fields:
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `draft` | Boolean; default `false` | `true` keeps the show unpublished regardless of its date. Must not be quoted. |
+| `transcript` | String | Relative path to a local UTF-8 `.txt` or `.vtt` file; website and RSS `podcast:transcript`. |
+
 ### Publication dates and scheduling
 
 Only `YYYY-MM-DD` or `YYYY-MM-DDTHH:MM:SS` followed by `Z` or a UTC offset such as `+02:00` is accepted. Examples:
@@ -96,7 +103,11 @@ date: 2026-10-14T18:00:00+02:00
 
 A date without a time means midnight in the configured time zone (`timezone`, default `Europe/Berlin`). If `date` is missing, the first ten characters of the filename are read as the date. An explicit `date` takes precedence over the filename; it does not change the show slug derived from that filename. Invalid calendar dates, relative expressions, and times without a time zone are rejected.
 
-Shows with a future date appear on the website and in feeds only once that time is reached; direct requests return 404 before then. The content validator already includes them. There is no separate front matter field for drafts or publication status.
+Shows with a future date appear on the website and in feeds only once that time is reached; direct requests return 404 before then. The content validator already includes them. Additionally, `draft: true` keeps a show unpublished regardless of its date, including its chapter and transcript routes. Set `draft: false` or remove the field to publish. A future date still schedules publication.
+
+`php bin/oprcast new my-podcast my-topic` creates a Markdown file in an existing series with the current timestamp in the configured time zone, a permanent UUID v4 GUID, a title derived from the slug, an audio stem, `episode_type: full` and `draft: true`. Existing slugs and files are never overwritten. Slugs use lowercase ASCII letters, digits and single hyphens; `index` is reserved. Add show notes, media and `duration`, remove draft status, and validate before publishing. Keep the GUID unchanged.
+
+For drafts, validation checks metadata types, dates, duplicate slugs and any supplied GUIDs. Other publication fields, media and chapter rules are checked once draft status is removed. Directly uploaded media remain accessible at public content or CDN URLs; draft status is not access control for those files.
 
 ### Complete example
 
@@ -163,6 +174,14 @@ Each entry starts with `-` or `*`, a timestamp, and the title, for example `- 03
 
 Only `startTime` (seconds) and `title` are published at `/{series}/{show}/chapters.json`, with document version `1.2.0`. When chapters exist, RSS links to them through `podcast:chapters`. Without chapters, the chapter route still returns a document with an empty list. Chapter images, chapter URLs, and a front matter field for an external chapter file are not used.
 
+## Transcripts and website chapter links
+
+`transcript: transcripts/first-show.vtt` associates a companion file relative to the episode file. Local UTF-8 `.txt` and `.vtt` files (with a `WEBVTT` header) are supported. Absolute URLs, parent paths and files outside the series directory are rejected. CDN configuration does not apply to transcripts.
+
+Episode pages display escaped text and a download link. WebVTT timings, cue IDs, comments and markup are removed from the readable version; speaker names are retained. The original file is served at `/{series}/{show}/transcript.txt` or `transcript.vtt`, with ETag and HEAD support. Series RSS, format RSS and meta RSS link to it using `podcast:transcript` (`text/plain` or `text/vtt`). Atom and JSON Feed do not receive additional transcript fields.
+
+Timestamps in the Markdown chapter section become links such as `?t=195` on episode pages. With JavaScript, clicking seeks within the player and updates the URL. A button beside each timestamp copies its link; if clipboard access is unavailable, use the link's context menu. Timestamp links seek after audio metadata loads, without starting playback automatically. Without JavaScript, playback, show notes and transcripts remain usable. Feed show notes and chapter JSON remain unchanged.
+
 ## Which metadata appears in each feed?
 
 The tables above list the exact destination fields. The following differences also apply:
@@ -214,7 +233,7 @@ The publisher generates the following record fields automatically; they are not 
 
 Unknown front matter keys are not generally rejected, but they produce no output without a corresponding implementation. Similarly, fields such as `image` or `author` on a show are accepted as strings, but the current publisher does not publish them as show artwork or a show author. There is no general inheritance of all series fields; show-specific inheritance applies to `explicit`, while formats and the default format are taken from the series.
 
-Other podcast metadata, such as owner/contact email, subtitles, transcripts, people, funding/value information, block/complete flags, or redirect URLs, is not currently implemented. Adding front matter fields alone cannot enable these features.
+Other podcast metadata, such as owner/contact email, subtitles, people, funding/value information, block/complete flags, or redirect URLs, is not currently implemented. Adding front matter fields alone cannot enable these features.
 
 Before publishing, run this command from the project directory:
 

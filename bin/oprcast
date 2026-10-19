@@ -4,12 +4,28 @@
 declare(strict_types=1);
 
 use Oprcast\Validator;
+use Oprcast\EpisodeCreator;
 
 $application = require dirname(__DIR__) . '/system/bootstrap.php';
 $command = $argv[1] ?? 'help';
 
+if ($command === 'new') {
+    if (count($argv) !== 4) {
+        fwrite(STDERR, "Usage: php bin/oprcast new <series> <episode-slug>\n");
+        exit(2);
+    }
+    try {
+        $path = (new EpisodeCreator())->create($application->repository(), $argv[2], $argv[3]);
+        fwrite(STDOUT, "Draft created: {$path}\nAdd show notes, audio and duration; set draft: false when ready to publish. Keep the GUID unchanged.\n");
+        exit(0);
+    } catch (\Throwable $exception) {
+        fwrite(STDERR, $exception->getMessage() . "\n");
+        exit(1);
+    }
+}
+
 if ($command !== 'validate') {
-    fwrite(STDOUT, "OPRCast\n\nUsage:\n  php bin/oprcast validate\n");
+    fwrite(STDOUT, "OPRCast\n\nUsage:\n  php bin/oprcast validate\n  php bin/oprcast new <series> <episode-slug>\n");
     exit($command === 'help' ? 0 : 2);
 }
 

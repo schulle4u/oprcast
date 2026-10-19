@@ -78,6 +78,20 @@ final class Application
             $this->send($css === false ? '' : $css, 'text/css; charset=utf-8', 200, ['Cache-Control' => 'public, max-age=3600']);
             return;
         }
+        if ($path === '/assets/player.js') {
+            $script = file_get_contents(dirname(__DIR__) . '/themes/default/player.js');
+            $this->send($script === false ? '' : $script, 'text/javascript; charset=utf-8', 200, ['Cache-Control' => 'public, max-age=3600']);
+            return;
+        }
+        if (preg_match('#^/([a-z0-9]+(?:-[a-z0-9]+)*)/([a-z0-9]+(?:-[a-z0-9]+)*)/transcript\.(txt|vtt)$#', $path, $match) === 1) {
+            $episode = $this->repository->episode($match[1], $match[2]);
+            $transcript = $this->repository->transcript($episode, $this->baseUrl());
+            if ($transcript === null || $transcript['extension'] !== $match[3]) {
+                throw new NotFoundException('Transcript not found.');
+            }
+            $this->conditional($transcript['content'], $transcript['type'] . '; charset=utf-8');
+            return;
+        }
         if (preg_match('#^/pages/([a-z0-9]+(?:-[a-z0-9]+)*)/?$#', $path, $match) === 1) {
             $this->html('page', ['page' => $this->repository->page($match[1])]);
             return;
@@ -162,7 +176,7 @@ final class Application
         }
         $this->send($body, 'text/html; charset=utf-8', $status, [
             'Vary' => 'Accept-Language',
-            'Content-Security-Policy' => "default-src 'self'; img-src 'self' https: data:; media-src 'self' https:; style-src 'self'; base-uri 'self'; frame-ancestors 'self'",
+            'Content-Security-Policy' => "default-src 'self'; script-src 'self'; img-src 'self' https: data:; media-src 'self' https:; style-src 'self'; base-uri 'self'; frame-ancestors 'self'",
         ]);
     }
 

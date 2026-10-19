@@ -377,6 +377,92 @@ if (class_exists(XMLWriter::class)) {
     $test($status === 200 && $body === '', 'HEAD does not emit a feed body.');
 
     $episodeFile = $fixture . '/test-cast/2025-01-01-first.md';
+    // Draft creation, identity safety and publication boundaries.
+    $creator = new \Oprcast\EpisodeCreator();
+    $draftFile = $creator->create($repository, 'test-cast', 'new-topic');
+    $draftSource = (string) file_get_contents($draftFile);
+    $draftMeta = $frontMatter->parse($draftSource)['meta'];
+    $test($draftMeta['draft'] === true && preg_match('/^urn:uuid:[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/', $draftMeta['guid']) === 1, 'Creator generates a draft and a UUID v4 identity.');
+    $test(count($repository->episodes('test-cast', true)) === 1 && count($repository->episodes('test-cast', true, true)) === 2, 'Including scheduled episodes never implicitly includes drafts.');
+    $test((new Validator())->validate($repository) === [], 'New drafts validate without media or duration.');
+    foreach (['/test-cast/new-topic/', '/test-cast/new-topic/chapters.json', '/test-cast/new-topic/transcript.txt'] as $path) {
+        [$status] = $request($path);
+        $test($status === 404, 'Draft episode and companion routes are unpublished.');
+    }
+    foreach (['/', '/test-cast/', '/feed.xml', '/test-cast/feed.xml', '/test-cast/feed.m4a.xml', '/test-cast/feed.atom', '/test-cast/feed.json'] as $path) {
+        [$status, $body] = $request($path);
+        $test($status === 200 && !str_contains($body, $draftMeta['guid']) && !str_contains($body, 'New topic'), 'Drafts are absent from all listings and feed variants.');
+    }
+    foreach (['new-topic', '../escape', 'Uppercase', 'index'] as $slug) {
+        try {
+            $creator->create($repository, 'test-cast', $slug);
+            $test(false, 'Creator must reject duplicate or unsafe slugs.');
+        } catch (\Oprcast\ContentException) {
+            $test(file_get_contents($draftFile) === $draftSource, 'Creator never overwrites an existing draft.');
+        }
+    }
+    file_put_contents($draftFile, str_replace('draft: true', 'draft: false', $draftSource));
+    $test((new Validator())->validate($repository) !== [], 'Publishing a draft requires complete publication metadata and media.');
+    file_put_contents($draftFile, str_replace('draft: true', "draft: false\nduration: 01:02", str_replace('audio: "new-topic"', 'audio: episode', $draftSource)));
+    $test(count($repository->episodes('test-cast')) === 2, 'A ready draft becomes public when draft is false.');
+    unlink($draftFile);
+    $numericDraft = $creator->create($repository, 'test-cast', '123');
+    $test((new Validator())->validate($repository) === [], 'Numeric slugs create correctly quoted text metadata.');
+    $numericMeta = $frontMatter->parse((string) file_get_contents($numericDraft))['meta'];
+    $test($numericMeta['guid'] !== $draftMeta['guid'], 'Each new draft receives a different permanent GUID.');
+    unlink($numericDraft);
+    $zeroDraft = $creator->create($repository, 'test-cast', '0');
+    $draftSlugs = array_column($repository->episodes('test-cast', true, true), 'slug');
+    $test(in_array('0', $draftSlugs, true), 'The numeric slug zero is preserved when reading generated filenames.');
+    unlink($zeroDraft);
+    file_put_contents($episodeFile, str_replace('episode: 1', 'episode: 1' . "\ndraft: \"true\"", $cdnFixtureSource));
+    $test(str_contains(implode('\n', (new Validator())->validate($repository)), 'invalid type or value'), 'Draft must be a boolean, not a quoted string.');
+    file_put_contents($episodeFile, $cdnFixtureSource);
+
+    // Local transcripts are escaped on pages and exposed in both RSS variants.
+    $txt = "A transcript with <script>alert(1)</script> & text.\nSecond line.";
+    file_put_contents($fixture . '/test-cast/transcript.txt', $txt);
+    file_put_contents($episodeFile, str_replace('episode: 1', "episode: 1\ntranscript: transcript.txt", $cdnFixtureSource));
+    $test((new Validator())->validate($repository) === [], 'Validator accepts a local TXT transcript.');
+    [$status, $body] = $request('/test-cast/first/');
+    $test($status === 200 && str_contains($body, '&lt;script&gt;alert(1)&lt;/script&gt; &amp; text.') && !str_contains($body, '<script>alert'), 'Transcript content is displayed as escaped text.');
+    $test(str_contains($body, 'href="?t=30"') && str_contains($body, '/assets/player.js') && str_contains($body, 'download>'), 'Episode page includes shareable chapter links, player enhancement and transcript download.');
+    foreach (['/feed.xml', '/test-cast/feed.xml', '/test-cast/feed.m4a.xml'] as $path) {
+        [$status, $body] = $request($path);
+        $test($status === 200 && str_contains($body, '<podcast:transcript url="https://example.test/test-cast/first/transcript.txt" type="text/plain"'), 'RSS advertises the transcript with its MIME type.');
+    }
+    [$status, $body] = $request('/test-cast/first/transcript.txt');
+    $test($status === 200 && $body === $txt, 'Transcript route returns the original file.');
+    $transcriptEtag = '"' . hash('sha256', $txt) . '"';
+    [$status, $body] = $request('/test-cast/first/transcript.txt', ['HTTP_IF_NONE_MATCH' => $transcriptEtag]);
+    $test($status === 304 && $body === '', 'Transcript requests honor content ETags.');
+    file_put_contents($fixture . '/test-cast/transcript.txt', $txt . '\nUpdated.');
+    [$status, $body] = $request('/test-cast/first/transcript.txt', ['HTTP_IF_NONE_MATCH' => $transcriptEtag]);
+    $test($status === 200 && str_contains($body, 'Updated.'), 'Changed transcript content invalidates its ETag.');
+    [$status, $body] = $request('/test-cast/first/transcript.txt', [], 'HEAD');
+    $test($status === 200 && $body === '', 'Transcript HEAD requests return no body.');
+    [$status] = $request('/test-cast/first/transcript.vtt');
+    $test($status === 404, 'Transcript routes reject mismatching formats.');
+    file_put_contents($fixture . '/test-cast/transcript.vtt', "WEBVTT\n\nNOTE ignored\n\ncue-one\n00:00.000 --> 00:01.000\n<v Alice>Hello &amp; <b>welcome</b>.</v>\n\n00:01.000 --> 00:02.000\nSecond cue.");
+    file_put_contents($episodeFile, str_replace('episode: 1', "episode: 1\ntranscript: transcript.vtt", $cdnFixtureSource));
+    $transcript = $repository->transcript($repository->episodes('test-cast')[0], 'https://example.test');
+    $test($transcript['type'] === 'text/vtt' && $transcript['text'] === "Alice: Hello & welcome.\n\nSecond cue.", 'VTT display omits timings, cue IDs and comments while preserving speakers.');
+    [$status, $body] = $request('/test-cast/first/transcript.vtt');
+    $test($status === 200 && str_starts_with($body, 'WEBVTT'), 'VTT route preserves timed transcript content.');
+    file_put_contents($fixture . '/test-cast/transcript.vtt', 'Not a WebVTT document.');
+    $test((new Validator())->validate($repository) !== [], 'Invalid WebVTT headers are rejected.');
+    foreach (['../outside.txt', 'https://example.test/file.txt', 'missing.txt', 'cover.jpg'] as $invalidTranscript) {
+        file_put_contents($episodeFile, str_replace('episode: 1', "episode: 1\ntranscript: {$invalidTranscript}", $cdnFixtureSource));
+        $test((new Validator())->validate($repository) !== [], 'Invalid, missing and unsafe transcript paths are rejected.');
+    }
+    file_put_contents($episodeFile, $cdnFixtureSource);
+    [$status] = $request('/test-cast/first/transcript.txt');
+    $test($status === 404, 'Episodes without transcripts have no transcript route.');
+    [$status, $body] = $request('/assets/player.js');
+    $test($status === 200 && str_contains($body, 'loadedmetadata'), 'Player JavaScript is routed as an asset.');
+    $linkedNotes = $markdown->renderEpisode("- 00:05 Outside\n\n## Kapitel\n\n- 00:00 Intro\n- 01:02 Topic\n\n## Other\n\n- 00:10 Outside");
+    $test(substr_count($linkedNotes, 'href="?t=') === 2 && str_contains($linkedNotes, 'href="?t=62"'), 'Only chapter-section timestamps become playback links.');
+
     unlink($episodeFile);
     [$status, $body] = $request('/test-cast/feed.xml', [
         'HTTP_IF_NONE_MATCH' => $etag, 'HTTP_IF_MODIFIED_SINCE' => $futureSince,

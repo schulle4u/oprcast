@@ -48,13 +48,12 @@ final class Validator
             }
 
             try {
-                $episodes = $repository->episodes((string) $series['slug'], true);
+                $episodes = $repository->episodes((string) $series['slug'], true, true);
             } catch (ContentException $exception) {
                 $errors[] = $exception->getMessage();
                 continue;
             }
             foreach ($episodes as $episode) {
-                $this->required($episode, ['title', 'date', 'guid', 'audio', 'duration', 'episode_type'], $errors);
                 if (isset($slugs[$episode['slug']])) {
                     $errors[] = "{$episode['source']}: duplicate episode slug also used in {$slugs[$episode['slug']]}.";
                 }
@@ -65,6 +64,16 @@ final class Validator
                         $errors[] = "{$episode['source']}: duplicate GUID also used in {$guids[$guid]}.";
                     }
                     $guids[$guid] = $episode['source'];
+                }
+                // Drafts may be incomplete, but identities must remain unique.
+                if ($episode['draft'] ?? false) {
+                    continue;
+                }
+                $this->required($episode, ['title', 'date', 'guid', 'audio', 'duration', 'episode_type'], $errors);
+                try {
+                    $repository->transcript($episode, 'https://validator.invalid');
+                } catch (ContentException $exception) {
+                    $errors[] = $exception->getMessage();
                 }
                 try {
                     foreach ($repository->enclosures($series, $episode, 'https://validator.invalid') as $enclosure) {

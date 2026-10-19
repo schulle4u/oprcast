@@ -15,7 +15,9 @@ final class Metadata
             if (in_array($field, ['title', 'description', 'language', 'author', 'image', 'copyright', 'type', 'default_format', 'guid', 'audio', 'duration', 'episode_type'], true)) {
                 // A blank cover is reported as missing by the content validator.
                 $valid = is_string($value) || ($field === 'image' && ($value === [] || $value === null));
-            } elseif ($field === 'explicit') {
+            } elseif ($field === 'transcript') {
+                $valid = is_string($value) && trim($value) !== '';
+            } elseif (in_array($field, ['explicit', 'draft'], true)) {
                 $valid = is_bool($value);
             } elseif (in_array($field, ['episode', 'season'], true) || str_starts_with($field, 'audio_length_')) {
                 $valid = is_int($value) && $value > 0;

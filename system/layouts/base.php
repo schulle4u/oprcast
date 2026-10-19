@@ -11,6 +11,9 @@ $documentTitle = isset($title) ? $title . ' – ' . $siteTitle : (($episode['tit
     <meta name="description" content="<?php echo htmlspecialchars($siteDescription, ENT_QUOTES, 'UTF-8'); ?>">
     <title><?php echo htmlspecialchars((string) $documentTitle, ENT_QUOTES, 'UTF-8'); ?></title>
     <link rel="stylesheet" href="<?php echo htmlspecialchars($baseUrl, ENT_QUOTES, 'UTF-8'); ?>/assets/theme.css">
+<?php if (isset($episode)): ?>
+    <script src="<?php echo htmlspecialchars($baseUrl, ENT_QUOTES, 'UTF-8'); ?>/assets/player.js" defer></script>
+<?php endif; ?>
 <?php if (isset($series)): ?>
     <link rel="alternate" type="application/rss+xml" title="<?php echo htmlspecialchars($series['title'], ENT_QUOTES, 'UTF-8'); ?>" href="<?php echo htmlspecialchars($baseUrl . '/' . $series['slug'] . '/feed.xml', ENT_QUOTES, 'UTF-8'); ?>">
 <?php foreach ($repository->seriesFormats($series) as $mediaFormat): ?>

@@ -29,6 +29,22 @@ final class Markdown
         return $parser->text($markdown);
     }
 
+    /** Adds shareable timestamps only inside the configured chapter section. */
+    public function renderEpisode(string $markdown): string
+    {
+        $keyword = preg_quote($this->chapterKeyword, '/');
+        $linked = preg_replace_callback('/(^##\s+' . $keyword . '\s*$)([\s\S]*?)(?=^#{1,2}\s|\z)/miu', static function (array $section): string {
+            return $section[1] . preg_replace_callback('/^(\s*[-*]\s+)((?:\d{1,2}:)?\d{1,2}:\d{2})(\s+.+)$/mu', static function (array $line): string {
+                $seconds = 0;
+                foreach (explode(':', $line[2]) as $part) {
+                    $seconds = $seconds * 60 + (int) $part;
+                }
+                return $line[1] . '[' . $line[2] . '](?t=' . $seconds . ')' . $line[3];
+            }, $section[2]);
+        }, $markdown, 1);
+        return $this->render($linked ?? $markdown);
+    }
+
     /**
      * Extracts timestamped entries from the configured chapter section.
      *

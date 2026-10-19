@@ -82,6 +82,13 @@ Für dieses Beispiel muss jede Show in allen fünf Formaten verfügbar sein. Nic
 | `explicit` | Boolean | Optional; Wert der Serie | Überschreibt für diese Show die Serienvorgabe in RSS-`itunes:explicit`. Ein eigenes `false` überschreibt auch ein Serien-`true`. |
 | `audio_length_<format>` | Positive Ganzzahl | Bedingt Pflicht je Format | Dateigröße in Bytes, z. B. `audio_length_mp3: 12345678`. Erforderlich, wenn die jeweilige Audiodatei nicht lokal verfügbar ist; siehe Medien. |
 
+Weitere optionale Episodenfelder:
+
+| Feld | Typ | Bedeutung |
+| --- | --- | --- |
+| `draft` | Boolean; Standard `false` | `true` hält die Show unabhängig vom Datum unveröffentlicht. Nicht zitieren. |
+| `transcript` | Text | Relativer Pfad zu einer lokalen UTF-8-Datei `.txt` oder `.vtt`; Website und RSS-`podcast:transcript`. |
+
 ### Veröffentlichungsdatum und Planung
 
 Akzeptiert werden ausschließlich `YYYY-MM-DD` oder `YYYY-MM-DDTHH:MM:SS` mit anschließendem `Z` oder UTC-Offset wie `+02:00`. Beispiele:
@@ -96,7 +103,11 @@ date: 2026-10-14T18:00:00+02:00
 
 Ein Datum ohne Uhrzeit bedeutet Mitternacht in der konfigurierten Zeitzone (`timezone`, standardmäßig `Europe/Berlin`). Fehlt `date`, werden die ersten zehn Zeichen des Dateinamens als Datum gelesen. Ein explizites `date` hat Vorrang vor dem Dateinamen; es ändert nicht den daraus abgeleiteten Show-Slug. Ungültige Kalenderdaten, relative Angaben und Uhrzeiten ohne Zeitzone werden abgelehnt.
 
-Shows mit einem zukünftigen Datum erscheinen erst ab diesem Zeitpunkt auf der Website und in den Feeds; ein direkter Aufruf liefert vorher 404. Der Inhaltsvalidator berücksichtigt sie bereits. Ein eigenes Front-Matter-Feld für Entwürfe oder Veröffentlichungsstatus gibt es nicht.
+Shows mit einem zukünftigen Datum erscheinen erst ab diesem Zeitpunkt auf der Website und in den Feeds; ein direkter Aufruf liefert vorher 404. Der Inhaltsvalidator berücksichtigt sie bereits. Zusätzlich hält `draft: true` eine Show unabhängig vom Datum zurück; auch Kapitel- und Transkriptrouten liefern dann 404. Zum Veröffentlichen `draft: false` setzen oder das Feld entfernen. Ein zukünftiges Datum gilt weiterhin.
+
+Der Befehl `php bin/oprcast new stimmen mein-thema` legt eine neue Markdown-Datei in der vorhandenen Serie an: mit aktuellem Datum und Uhrzeit in der konfigurierten Zeitzone, dauerhaftem UUID-v4-GUID, Titel aus dem Slug, Audiostamm, `episode_type: full` und `draft: true`. Vorhandene Slugs und Dateien werden nicht überschrieben. Slugs verwenden kleine ASCII-Buchstaben, Ziffern und einzelne Bindestriche; `index` ist reserviert. Shownotes, Medien und `duration` ergänzen, Entwurfsstatus entfernen und vor der Veröffentlichung validieren. Die GUID beibehalten.
+
+Bei Entwürfen prüft der Validator Feldtypen, Datum sowie doppelte Slugs und vorhandene GUIDs. Andere Pflichtfelder, Medien und Kapitelregeln werden erst nach Entfernen des Entwurfsstatus geprüft. Direkt hochgeladene Medien bleiben über öffentliche Inhalts- oder CDN-URLs abrufbar; der Entwurfsstatus ist kein Zugriffsschutz für diese Dateien.
 
 ### Vollständiges Beispiel
 
@@ -163,6 +174,14 @@ Jeder Eintrag beginnt mit `-` oder `*`, einem Zeitstempel und dem Titel, etwa `-
 
 Ausgegeben werden ausschließlich `startTime` (Sekunden) und `title` unter `/{serie}/{show}/chapters.json`, mit Dokumentversion `1.2.0`. Bei vorhandenen Kapiteln verweist RSS über `podcast:chapters` darauf. Ohne Kapitel liefert die Kapitelroute weiterhin ein Dokument mit leerer Liste. Kapitelbilder, Kapitel-URLs oder ein Front-Matter-Feld für eine externe Kapiteldatei werden nicht ausgewertet.
 
+## Transkripte und Kapitel auf der Website
+
+`transcript: transkripte/erste-show.vtt` ordnet eine Begleitdatei relativ zur Episoden-Datei zu. Unterstützt sind lokale UTF-8-Dateien `.txt` und `.vtt` (mit `WEBVTT`-Kopf). Absolute URLs, übergeordnete Pfade und Dateien außerhalb des Serienverzeichnisses sind unzulässig. Die CDN-Einstellung gilt nicht für Transkripte.
+
+Die Episodenseite zeigt maskierten Text und einen Downloadlink. Bei WebVTT entfallen in der lesbaren Darstellung Zeitstempel, Cue-IDs, Kommentare und Markup; Sprecherbezeichnungen bleiben erhalten. Die Originaldatei wird unter `/{serie}/{show}/transcript.txt` beziehungsweise `transcript.vtt` mit ETag- und HEAD-Unterstützung bereitgestellt. Serien-RSS, Format-RSS und Meta-RSS verweisen per `podcast:transcript` darauf (`text/plain` oder `text/vtt`). Atom und JSON Feed erhalten kein zusätzliches Transkriptfeld.
+
+Zeitstempel im Markdown-Kapitelabschnitt werden auf Episodenseiten zu Links wie `?t=195`. Mit JavaScript springen diese im Player zur passenden Stelle und aktualisieren die URL. Je Zeitstempel gibt es eine Kopierschaltfläche; ohne Zwischenablagezugriff bleibt das Kontextmenü des Links verfügbar. Zeitlinks springen nach Laden der Audiometadaten, ohne automatische Wiedergabe. Ohne JavaScript bleiben Player, Shownotes und Transkript nutzbar. Shownotes in Feeds und Kapitel-JSON bleiben unverändert.
+
 ## Welche Metadaten erscheinen in welchem Feed?
 
 Die Tabellen oben nennen die genauen Zielfelder. Ergänzend gelten folgende Unterschiede:
@@ -214,7 +233,7 @@ Folgende Datensatzfelder erzeugt der Publisher automatisch; sie sind keine zusä
 
 Unbekannte Front-Matter-Schlüssel werden nicht generell zurückgewiesen, erzeugen aber ohne entsprechende Implementierung keine Ausgabe. Ebenso werden beispielsweise `image` oder `author` auf Show-Ebene zwar als Text akzeptiert, vom aktuellen Publisher dort aber nicht als Show-Cover oder Show-Autor veröffentlicht. Es gibt keine allgemeine Vererbung sämtlicher Serienfelder; die Show-spezifische Vererbung betrifft `explicit`, während Formate und Standardformat aus der Serie verwendet werden.
 
-Weitere Podcast-Metadaten wie Owner-/Kontakt-E-Mail, Untertitel, Transkripte, Personen, Funding-/Value-Angaben, Block-/Complete-Kennzeichen oder Weiterleitungs-URLs sind derzeit nicht implementiert. Sie lassen sich nicht allein durch zusätzliche Front-Matter-Felder aktivieren.
+Weitere Podcast-Metadaten wie Owner-/Kontakt-E-Mail, Untertitel, Personen, Funding-/Value-Angaben, Block-/Complete-Kennzeichen oder Weiterleitungs-URLs sind derzeit nicht implementiert. Sie lassen sich nicht allein durch zusätzliche Front-Matter-Felder aktivieren.
 
 Vor der Veröffentlichung aus dem Projektverzeichnis ausführen:
 

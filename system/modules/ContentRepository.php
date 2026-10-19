@@ -80,12 +80,12 @@ final class ContentRepository
     /**
      * Returns a series' episodes in reverse publication order.
      *
-     * Future episodes are hidden unless explicitly requested, which allows the
-     * same repository to serve the site and validate scheduled publications.
+     * Future episodes and drafts have separate opt-ins, so validation can see
+     * unpublished content without accidentally publishing drafts on the site.
      *
      * @return list<array<string, mixed>>
      */
-    public function episodes(string $seriesSlug, bool $includeFuture = false): array
+    public function episodes(string $seriesSlug, bool $includeFuture = false, bool $includeDrafts = false): array
     {
         $directory = $this->safeDirectory($seriesSlug);
         $episodes = [];
@@ -93,7 +93,10 @@ final class ContentRepository
             if (basename($file) === 'index.md') {
                 continue;
             }
-            $episode = $this->loadEpisode($seriesSlug, $file);
+            $episode = $this->loadEpisode($seriesSlug, $file, $includeDrafts);
+            if ($episode === null) {
+                continue;
+            }
             if ($includeFuture || $episode['date'] <= new DateTimeImmutable('now')) {
                 $episodes[] = $episode;
             }
@@ -241,6 +244,17 @@ final class ContentRepository
     public function usesCdnForRelativeMedia(): bool
     {
         return $this->cdnUrl !== null;
+    }
+
+    /** @return array{content: string, text: string, type: string, extension: string, url: string}|null */
+    public function transcript(array $episode, string $baseUrl): ?array
+    {
+        if (!isset($episode['transcript'])) {
+            return null;
+        }
+        $transcript = Transcript::read((string) $episode['source'], (string) $episode['transcript']);
+        $transcript['url'] = rtrim($baseUrl, '/') . '/' . $episode['series_slug'] . '/' . $episode['slug'] . '/transcript.' . $transcript['extension'];
+        return $transcript;
     }
 
     /**
@@ -396,13 +410,16 @@ final class ContentRepository
     /**
      * Loads an episode file and derives its slug, publication date and chapters.
      *
-     * @return array<string, mixed>
+     * @return array<string, mixed>|null Hidden drafts return null.
      */
-    private function loadEpisode(string $seriesSlug, string $file): array
+    private function loadEpisode(string $seriesSlug, string $file, bool $includeDrafts = false): ?array
     {
         $parsed = $this->read($file);
+        if (($parsed['meta']['draft'] ?? false) && !$includeDrafts) {
+            return null;
+        }
         $filename = pathinfo($file, PATHINFO_FILENAME);
-        $slug = preg_replace('/^\d{4}-\d{2}-\d{2}-/', '', $filename) ?: $filename;
+        $slug = preg_replace('/^\d{4}-\d{2}-\d{2}-/', '', $filename) ?? $filename;
         if (!$this->validSlug($slug)) {
             throw new ContentException("{$file}: invalid episode slug.");
         }

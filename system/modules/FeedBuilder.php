@@ -100,6 +100,7 @@ final class FeedBuilder
                 }
             }
             $this->element($xml, 'itunes:episodeType', (string) ($episode['episode_type'] ?? 'full'));
+            $this->writeTranscript($xml, $repository, $episode, $baseUrl);
             $this->element($xml, 'itunes:explicit', $this->bool($episode['explicit'] ?? $series['explicit'] ?? false));
             if ($episode['chapters'] !== []) {
                 $xml->startElement('podcast:chapters');
@@ -180,6 +181,7 @@ final class FeedBuilder
                 }
             }
             $this->element($xml, 'itunes:episodeType', (string) ($episode['episode_type'] ?? 'full'));
+            $this->writeTranscript($xml, $repository, $episode, $baseUrl);
             $this->element($xml, 'itunes:explicit', $this->bool($episode['explicit'] ?? $series['explicit'] ?? false));
             if ($episode['chapters'] !== []) {
                 $xml->startElement('podcast:chapters');
@@ -304,6 +306,17 @@ final class FeedBuilder
         $xml->setIndent(true);
         $xml->startDocument('1.0', 'UTF-8');
         return $xml;
+    }
+
+    /** Advertises the companion file in both series and publisher RSS. */
+    private function writeTranscript(XMLWriter $xml, ContentRepository $repository, array $episode, string $baseUrl): void
+    {
+        if ($transcript = $repository->transcript($episode, $baseUrl)) {
+            $xml->startElement('podcast:transcript');
+            $xml->writeAttribute('url', $transcript['url']);
+            $xml->writeAttribute('type', $transcript['type']);
+            $xml->endElement();
+        }
     }
 
     /** Writes a complete text-only XML element. */

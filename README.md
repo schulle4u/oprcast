@@ -10,6 +10,7 @@ OPRCast is a minimal, database-free podcast publisher for PHP webspaces. Podcast
 - Apache 2.4 with `mod_rewrite` for production, or PHP's built-in server for development
 
 No Composer packages, database, or JavaScript runtime are required in production.
+Episode pages optionally use a small bundled browser script for chapter seeking and copying timestamp links; playback, show notes and transcripts remain available without JavaScript.
 
 ## Quick start
 
@@ -110,6 +111,28 @@ Metadata fields are type-checked when loaded: text fields must be strings, `expl
 
 Feeds and chapter files use content-based ETags for conditional requests. Modification-date headers are deliberately omitted because filesystem timestamps cannot reliably represent deletions or scheduled publication. Invalid content is logged to PHP's error log and returns HTTP 500; missing resources return 404. Broken static pages are omitted from navigation so other pages remain available.
 
+## Drafts and the episode CLI
+
+```sh
+php bin/oprcast new my-podcast my-next-episode
+```
+
+Creates `content/my-podcast/YYYY-MM-DD-my-next-episode.md` with the current date in the configured time zone, a permanent UUID v4 GUID, an audio stem and `draft: true`. The series must already exist. Existing episode slugs and files are never overwritten. Edit the title and show notes, add audio in the series formats and a `duration`, then run validation. Set `draft: false` (or remove it) and validate again before publishing; a future `date` still schedules publication.
+
+Drafts never appear on public pages or in feeds, and their episode, chapter and transcript routes return 404. Validation checks their metadata types, date, slug and GUID uniqueness, while allowing missing publication fields and media. Draft status is not access control for media files: files uploaded to a public content directory or CDN remain accessible by their direct URLs.
+
+## Transcripts and chapter links
+
+Add an optional local companion file to an episode's front matter:
+
+```yaml
+transcript: my-next-episode.vtt
+```
+
+UTF-8 `.txt` and WebVTT `.vtt` files are supported, relative to the episode's directory, including subdirectories. Transcripts stay local even when audio/images use a CDN; remote transcript URLs are not supported. The episode page displays readable text and a download link. WebVTT timings and markup are omitted from the readable version, while the original timed file is preserved for download. Series RSS (including format variants) and publisher RSS advertise the file using `podcast:transcript`.
+
+Existing Markdown chapter timestamps become links on episode pages, for example `/{series}/{episode}/?t=195`. With JavaScript enabled, clicking a timestamp seeks within the player and updates the URL. Each timestamp also has a copy-link button; if clipboard access is unavailable, use the timestamp link's context menu. Opening a timestamp link seeks after audio metadata loads, without starting playback automatically. Show notes in feeds remain unchanged.
+
 ## Localization
 
 The CMS language is selected on each request from the browser's `Accept-Language` header. Supported languages are tried in preference order (including `q` weights); regional variants such as `en-US` fall back to the base language `en`. Missing, invalid, or unsupported browser preferences fall back to the `language` setting in `system/config/site.php`. Its value is the filename below `system/lang` without the `.php` extension; for example, `de` loads `system/lang/de.php`. German and English translations are included. HTML responses declare `Vary: Accept-Language` for caches.
@@ -123,9 +146,11 @@ Language files are PHP arrays containing simple string key-value pairs. In addit
 ```sh
 php bin/oprcast validate
 php tests/run.php
+node tests/player.mjs
 ```
 
 The validator reports missing metadata, missing local media, duplicate GUIDs or audio paths, invalid durations, and malformed chapter order.
+Node.js is only needed to run the optional player tests, not to serve OPRCast.
 
 ## Published routes
 
@@ -138,4 +163,5 @@ The validator reports missing metadata, missing local media, duplicate GUIDs or 
 - `/{series}/feed.atom` – Atom feed
 - `/{series}/feed.json` – JSON Feed
 - `/{series}/{episode}/chapters.json` – Podcasting 2.0 chapters
+- `/{series}/{episode}/transcript.txt` or `transcript.vtt` – the configured transcript's original file
 - `/pages/{slug}/` – static page
