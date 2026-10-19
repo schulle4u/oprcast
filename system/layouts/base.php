@@ -35,7 +35,7 @@ $documentTitle = isset($title) ? $title . ' – ' . $siteTitle : (($episode['tit
 <?php endif; ?>
 </header>
 <main id="main" class="container"><?php echo $content; ?></main>
-<footer class="site-footer"><p><?php echo htmlspecialchars($localization->get('published_with'), ENT_QUOTES, 'UTF-8'); ?> (<a href="https://m45.dev">M45Development</a>).</p></footer>
+<footer class="site-footer"><p><a href="https://github.com/schulle4u/oprcast"><?php echo htmlspecialchars($localization->get('published_with'), ENT_QUOTES, 'UTF-8'); ?></a> (<a href="https://m45.dev">M45Development</a>).</p></footer>
 </body>
 </html>
 
