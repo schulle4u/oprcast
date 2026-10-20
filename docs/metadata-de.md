@@ -182,6 +182,10 @@ Die Episodenseite zeigt maskierten Text und einen Downloadlink. Bei WebVTT entfa
 
 Zeitstempel im Markdown-Kapitelabschnitt werden auf Episodenseiten zu Links wie `?t=195`. Mit JavaScript springen diese im Player zur passenden Stelle und aktualisieren die URL. Je Zeitstempel gibt es eine Kopierschaltfläche; ohne Zwischenablagezugriff bleibt das Kontextmenü des Links verfügbar. Zeitlinks springen nach Laden der Audiometadaten, ohne automatische Wiedergabe. Ohne JavaScript bleiben Player, Shownotes und Transkript nutzbar. Shownotes in Feeds und Kapitel-JSON bleiben unverändert.
 
+## Zwischen Episoden blättern
+
+Unter den Shownotes einschließlich der Kapitelliste erscheinen Links zur unmittelbar vorherigen und nächsten veröffentlichten Episode derselben Serie. Die beschriftete Navigation nennt jeweils den Episodentitel und folgt der Reihenfolge nach Veröffentlichungsdatum im Serienindex. Entwürfe und zukünftige Episoden werden übersprungen. Bei der ältesten beziehungsweise neuesten Episode erscheint nur die verfügbare Richtung; bei nur einer veröffentlichten Episode entfällt die Navigation. Sie funktioniert ohne JavaScript und ohne zusätzliche Metadaten.
+
 ## Komfortfunktionen des Webplayers
 
 Mit JavaScript ergänzen beschriftete Schaltflächen für 15 Sekunden zurück und 30 Sekunden vor sowie eine Geschwindigkeitsauswahl (0,75×, 1×, 1,25×, 1,5×, 2×) den nativen Player. Sie sind über die Tastatur erreichbar. Sprungtasten sind erst nach Laden der Audiometadaten verfügbar und bleiben innerhalb der Audiodauer. Änderungen der Geschwindigkeit über native Browserfunktionen werden in die Auswahl übernommen. Ohne JavaScript bleiben die Zusatzfunktionen ausgeblendet; der native Player ist weiterhin bedienbar.

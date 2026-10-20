@@ -130,12 +130,27 @@ final class ContentRepository
      */
     public function episode(string $seriesSlug, string $episodeSlug): array
     {
+        return $this->episodeWithNeighbors($seriesSlug, $episodeSlug)['episode'];
+    }
+
+    /**
+     * Finds an episode and its chronological neighbors among published episodes.
+     *
+     * @return array{episode: array<string, mixed>, previousEpisode: ?array, nextEpisode: ?array}
+     */
+    public function episodeWithNeighbors(string $seriesSlug, string $episodeSlug): array
+    {
         if (!$this->validSlug($episodeSlug)) {
             throw new NotFoundException('Episode not found.');
         }
-        foreach ($this->episodes($seriesSlug) as $episode) {
+        $episodes = $this->episodes($seriesSlug);
+        foreach ($episodes as $index => $episode) {
             if ($episode['slug'] === $episodeSlug) {
-                return $episode;
+                return [
+                    'episode' => $episode,
+                    'previousEpisode' => $episodes[$index + 1] ?? null,
+                    'nextEpisode' => $episodes[$index - 1] ?? null,
+                ];
             }
         }
         throw new NotFoundException('Episode not found.');

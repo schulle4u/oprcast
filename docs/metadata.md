@@ -182,6 +182,10 @@ Episode pages display escaped text and a download link. WebVTT timings, cue IDs,
 
 Timestamps in the Markdown chapter section become links such as `?t=195` on episode pages. With JavaScript, clicking seeks within the player and updates the URL. A button beside each timestamp copies its link; if clipboard access is unavailable, use the link's context menu. Timestamp links seek after audio metadata loads, without starting playback automatically. Without JavaScript, playback, show notes and transcripts remain usable. Feed show notes and chapter JSON remain unchanged.
 
+## Browsing between episodes
+
+Below the show notes and chapter list, labeled navigation links lead to the immediately previous and next published episode in the same series and include the episode title. Order follows publication dates, as in the series index. Drafts and future episodes are skipped. The oldest and newest episodes show only the available direction; a series with one published episode has no navigation block. This works without JavaScript or additional metadata.
+
 ## Web player comfort controls
 
 With JavaScript, labeled buttons skip back 15 seconds or forward 30 seconds, and a speed selector offers 0.75×, 1×, 1.25×, 1.5× and 2×. All controls are keyboard accessible. Skip buttons wait for audio metadata and stay within the audio duration. Native browser speed changes are reflected in the selector. Without JavaScript, the additional controls stay hidden and the native player remains usable.

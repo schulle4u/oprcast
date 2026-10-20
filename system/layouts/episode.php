@@ -39,5 +39,17 @@
         <div class="transcript-text"><?php echo htmlspecialchars($transcript['text'], ENT_QUOTES, 'UTF-8'); ?></div>
     </section>
 <?php endif; ?>
+<?php if ($previousEpisode !== null || $nextEpisode !== null): ?>
+    <nav class="episode-navigation" aria-label="<?php echo htmlspecialchars($localization->get('episode_navigation'), ENT_QUOTES, 'UTF-8'); ?>">
+        <ul>
+<?php if ($previousEpisode !== null): ?>
+            <li><a rel="prev" href="<?php echo htmlspecialchars($baseUrl . '/' . $series['slug'] . '/' . $previousEpisode['slug'] . '/', ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($localization->get('previous_episode'), ENT_QUOTES, 'UTF-8'); ?>: <?php echo htmlspecialchars($previousEpisode['title'], ENT_QUOTES, 'UTF-8'); ?></a></li>
+<?php endif; ?>
+<?php if ($nextEpisode !== null): ?>
+            <li><a rel="next" href="<?php echo htmlspecialchars($baseUrl . '/' . $series['slug'] . '/' . $nextEpisode['slug'] . '/', ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($localization->get('next_episode'), ENT_QUOTES, 'UTF-8'); ?>: <?php echo htmlspecialchars($nextEpisode['title'], ENT_QUOTES, 'UTF-8'); ?></a></li>
+<?php endif; ?>
+        </ul>
+    </nav>
+<?php endif; ?>
 </article>
 

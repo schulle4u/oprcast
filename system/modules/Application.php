@@ -111,8 +111,7 @@ final class Application
         }
         if (preg_match('#^/([a-z0-9]+(?:-[a-z0-9]+)*)/([a-z0-9]+(?:-[a-z0-9]+)*)/?$#', $path, $match) === 1) {
             $series = $this->repository->seriesBySlug($match[1]);
-            $episode = $this->repository->episode($match[1], $match[2]);
-            $this->html('episode', ['series' => $series, 'episode' => $episode]);
+            $this->html('episode', ['series' => $series, ...$this->repository->episodeWithNeighbors($match[1], $match[2])]);
             return;
         }
         if (preg_match('#^/([a-z0-9]+(?:-[a-z0-9]+)*)/?$#', $path, $match) === 1) {

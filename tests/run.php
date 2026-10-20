@@ -360,6 +360,46 @@ if (class_exists(XMLWriter::class)) {
         }
         return [http_response_code(), $body];
     };
+    // Episode navigation follows publication order within one series only.
+    [$status, $body] = $request('/test-cast/first/');
+    $test($status === 200 && !str_contains($body, 'class="episode-navigation"'), 'A series with one published episode has no empty episode navigation.');
+    $navigationFixtures = [];
+    foreach ([
+        ['2024-12-31-previous.md', '2024-12-31T10:00:00+00:00', 'Previous & <episode>', false],
+        ['2025-01-02-next.md', '2025-01-02T10:00:00+00:00', 'Next episode', false],
+        ['2025-01-01-hidden-draft.md', '2025-01-01T12:00:00+00:00', 'Hidden draft', true],
+        ['2099-01-01-scheduled.md', '2099-01-01T10:00:00+00:00', 'Scheduled episode', false],
+    ] as [$filename, $date, $title, $draft]) {
+        $path = $fixture . '/test-cast/' . $filename;
+        $source = str_replace(
+            ['title: First episode', '2025-01-01T10:00:00+00:00', 'guid: urn:uuid:420111d4-ff3a-425d-a921-2ab9a9054dd6'],
+            ['title: ' . $title, $date, 'guid: nav-' . $filename . ($draft ? "\ndraft: true" : '')],
+            $cdnFixtureSource,
+        );
+        file_put_contents($path, $source);
+        $navigationFixtures[] = $path;
+    }
+    mkdir($fixture . '/another-cast');
+    file_put_contents($fixture . '/another-cast/index.md', (string) file_get_contents($fixture . '/test-cast/index.md'));
+    file_put_contents($fixture . '/another-cast/2025-01-01-foreign.md', str_replace('2025-01-01T10:00:00+00:00', '2025-01-01T11:00:00+00:00', $cdnFixtureSource));
+    [$status, $body] = $request('/test-cast/first/');
+    preg_match('#<nav class="episode-navigation"[^>]*>(.*?)</nav>#s', $body, $navigationMatch);
+    $navigation = $navigationMatch[1] ?? '';
+    $test($status === 200 && str_contains($navigation, 'rel="prev" href="https://example.test/test-cast/previous/"') && str_contains($navigation, 'rel="next" href="https://example.test/test-cast/next/"'), 'Middle episodes link to the immediately previous and next published episodes.');
+    $test(str_contains($navigation, 'Previous episode: Previous &amp; &lt;episode&gt;'), 'Navigation links include localized direction labels and escaped episode titles.');
+    $test(!str_contains($navigation, 'hidden-draft') && !str_contains($navigation, 'scheduled') && !str_contains($navigation, 'another-cast'), 'Navigation excludes drafts, scheduled episodes and other series.');
+    $test(strpos($body, 'data-show-notes') < strpos($body, 'class="episode-navigation"'), 'Episode navigation appears after the show notes and chapters.');
+    foreach (['previous' => 'next', 'next' => 'prev'] as $slug => $direction) {
+        [$status, $body] = $request('/test-cast/' . $slug . '/');
+        preg_match('#<nav class="episode-navigation"[^>]*>(.*?)</nav>#s', $body, $navigationMatch);
+        $navigation = $navigationMatch[1] ?? '';
+        $test($status === 200 && substr_count($navigation, '<a ') === 1 && str_contains($navigation, 'rel="' . $direction . '" href="https://example.test/test-cast/first/"'), 'Oldest and newest episodes have exactly one reciprocal navigation link.');
+    }
+    foreach ($navigationFixtures as $path) unlink($path);
+    unlink($fixture . '/another-cast/2025-01-01-foreign.md');
+    unlink($fixture . '/another-cast/index.md');
+    rmdir($fixture . '/another-cast');
+
     [$status, $body] = $request('/test-cast/feed.xml');
     $etag = '"' . hash('sha256', $body) . '"';
     foreach ([$etag, 'W/' . $etag, '"other", W/' . $etag, '*'] as $condition) {

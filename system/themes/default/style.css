@@ -33,6 +33,9 @@ h3 { margin-block: .2rem; font-size: 1.25rem; }
 .podcast-header img { width: 100%; height: auto; border-radius: .8rem; }
 .episode-list { padding: 0; list-style: none; }
 .episode-list > li { padding-block: 1.5rem; border-top: 1px solid var(--border); }
+.episode-navigation { max-width: 46rem; margin-block: 2rem; padding-block: 1rem; border-block: 1px solid var(--border); }
+.episode-navigation ul { gap: 1rem 2rem; justify-content: space-between; }
+.episode-navigation li { flex: 1 1 15rem; min-width: 0; overflow-wrap: anywhere; }
 
 /* Markdown content: keep long links, tables and code within the text column. */
 .prose { max-width: 46rem; min-width: 0; overflow-wrap: anywhere; }

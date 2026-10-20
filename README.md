@@ -148,6 +148,8 @@ UTF-8 `.txt` and WebVTT `.vtt` files are supported, relative to the episode's di
 
 Existing Markdown chapter timestamps become links on episode pages, for example `/{series}/{episode}/?t=195`. With JavaScript enabled, clicking a timestamp seeks within the player and updates the URL. Each timestamp also has a copy-link button; if clipboard access is unavailable, use the timestamp link's context menu. Opening a timestamp link seeks after audio metadata loads, without starting playback automatically. Show notes in feeds remain unchanged.
 
+Episode pages also provide links to the immediately previous and next published episode in the same series below the show notes and chapters. Links follow publication dates, as in the series index; drafts and scheduled episodes are excluded. At either end only the available direction is shown, and a single-episode series has no navigation block. This works without JavaScript.
+
 ## Player comfort controls
 
 With JavaScript enabled, episode pages offer buttons to skip back 15 seconds or forward 30 seconds, plus a speed selector (0.75×, 1×, 1.25×, 1.5×, 2×). These supplement the native audio player and work with keyboard navigation. Speed changes made through the browser's native controls are reflected in the selector. Skip buttons become available when the audio metadata is ready and stay within the audio duration.
