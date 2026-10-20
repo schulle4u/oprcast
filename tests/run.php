@@ -245,6 +245,32 @@ if (class_exists(XMLWriter::class)) {
     $rss = $feeds->rss($series, $episodes, 'https://example.test', $repository);
     $m4aRss = $feeds->rss($series, $episodes, 'https://example.test', $repository, 'm4a');
     $metaRss = $feeds->metaRss([$series], $allEpisodes, 'https://example.test', $repository);
+    foreach ([$rss, $m4aRss, $metaRss] as $feed) {
+        $test(!str_contains($feed, '<itunes:owner>'), 'RSS omits owner metadata when no contact is configured.');
+    }
+    foreach ([
+        ['owner_name' => ' Publisher & Team ', 'owner_email' => ' contact@example.test '],
+        ['owner_email' => 'contact@example.test'],
+        ['owner_name' => 'Publisher', 'owner_email' => '   '],
+        ['owner_name' => 'Publisher'],
+    ] as $ownerConfig) {
+        $ownerFeeds = new FeedBuilder(array_replace($config, $ownerConfig), $markdown);
+        foreach ([
+            $ownerFeeds->rss($series, $episodes, 'https://example.test', $repository),
+            $ownerFeeds->rss($series, $episodes, 'https://example.test', $repository, 'm4a'),
+            $ownerFeeds->metaRss([$series], $allEpisodes, 'https://example.test', $repository),
+        ] as $feed) {
+            $document = simplexml_load_string($feed);
+            $owner = $document->channel->children('http://www.itunes.com/dtds/podcast-1.0.dtd')->owner;
+            if (trim($ownerConfig['owner_email'] ?? '') === '') {
+                $test(count($owner) === 0, 'RSS omits owner blocks without an email, even when a name is set.');
+            } else {
+                $test(count($owner) === 1 && (string) $owner->email === 'contact@example.test', 'Every RSS variant publishes one channel owner with the trimmed contact email.');
+                $test((string) $owner->name === trim($ownerConfig['owner_name'] ?? ''), 'RSS owner names are optional, trimmed and XML-escaped correctly.');
+                $test(count($document->channel->item->children('http://www.itunes.com/dtds/podcast-1.0.dtd')->owner) === 0, 'Owner metadata belongs to the channel, not individual episodes.');
+            }
+        }
+    }
     $atom = $feeds->atom($series, $episodes, 'https://example.test', $repository);
     $json = json_decode($feeds->json($series, $episodes, 'https://example.test', $repository), true, flags: JSON_THROW_ON_ERROR);
     $cdnRss = $feeds->rss($series, $episodes, 'https://example.test', $cdnRepository);

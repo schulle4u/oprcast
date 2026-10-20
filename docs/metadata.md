@@ -234,12 +234,16 @@ The following settings in [system/config/site.php](../system/config/site.php) af
 | `timezone` | `Europe/Berlin` | Time zone, particularly for dates without an offset. |
 | `base_url` | `OPRCAST_BASE_URL`, otherwise derived from the request | Canonical base for page, feed, chapter, and local media URLs. Configure explicitly for production. |
 | `cdn_url` | `OPRCAST_CDN_URL`, otherwise no CDN | Base URL for relative media paths. |
+| `owner_name` | `OPRCAST_OWNER_NAME`, otherwise empty | Optional contact name in `itunes:owner/itunes:name` in all RSS feeds. |
+| `owner_email` | `OPRCAST_OWNER_EMAIL`, otherwise empty | Public contact email in `itunes:owner/itunes:email` in all RSS feeds. An empty or whitespace-only value omits the entire owner block. |
 | `content_path` | Project directory plus `/content` | Root directory for series and static pages. |
 | `show_home_episodes` | `true` | Show the HTML episode list across all series on the publisher homepage. Set to `false` to hide it. |
 | `feed_limit` | `100` | Maximum entries per feed, including meta RSS. |
 | `development` | `OPRCAST_DEBUG`, otherwise `false` | Controls detailed error messages; not published podcast metadata. |
 
 Startup also adds `media_formats` from `media.php` and `language_code` from the configured language file. The website language and HTML `lang` follow browser preferences with a fallback to the configured language; feed metadata remains independent of these preferences.
+
+Set `owner_name` and `owner_email` in `system/config/site.php` (or the corresponding environment variables) to provide a shared publisher contact for series RSS, format-specific RSS, and meta RSS. Use a valid, reachable email address for directory ownership verification. Both values are trimmed; the name is optional. The email address is publicly readable in the feeds. These settings do not change `itunes:author`, Atom, or JSON Feed, and cannot be overridden in front matter.
 
 The publisher generates the following record fields automatically; they are not additional editorial input fields:
 
@@ -254,7 +258,7 @@ The publisher generates the following record fields automatically; they are not 
 
 Unknown front matter keys are not generally rejected, but they produce no output without a corresponding implementation. For example, `author` on a show is accepted as a string but is not published as a show author. There is no general inheritance of all series fields; `explicit` and artwork use the series default when no show-specific value is supplied. Formats and the default format are taken from the series.
 
-Other podcast metadata, such as owner/contact email, subtitles, people, funding/value information, block/complete flags, or redirect URLs, is not currently implemented. Adding front matter fields alone cannot enable these features.
+Other podcast metadata, such as subtitles, people, funding/value information, block/complete flags, or redirect URLs, is not currently implemented. Adding front matter fields alone cannot enable these features.
 
 Before publishing, run this command from the project directory:
 

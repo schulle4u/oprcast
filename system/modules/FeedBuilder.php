@@ -57,6 +57,7 @@ final class FeedBuilder
         $xml->writeAttribute('type', 'application/rss+xml');
         $xml->endElement();
         $this->element($xml, 'itunes:author', (string) ($series['author'] ?? ''));
+        $this->writeOwner($xml);
         $this->element($xml, 'itunes:summary', (string) ($series['description'] ?? ''));
         $this->element($xml, 'itunes:explicit', $this->bool($series['explicit'] ?? false));
         $this->element($xml, 'itunes:type', (string) ($series['type'] ?? 'episodic'));
@@ -141,6 +142,7 @@ final class FeedBuilder
         $this->element($xml, 'description', (string) ($homePage['description'] ?? $this->markdown->text($homePage['body'] ?? '')));
         $this->element($xml, 'language', (string) ($this->config['language_code'] ?? $this->config['language'] ?? 'en'));
         $this->element($xml, 'lastBuildDate', $this->latestModified($seriesList, $episodes)->format(DateTimeInterface::RFC2822));
+        $this->writeOwner($xml);
         $xml->startElement('atom:link');
         $xml->writeAttribute('href', $feedUrl);
         $xml->writeAttribute('rel', 'self');
@@ -321,6 +323,23 @@ final class FeedBuilder
             $xml->writeAttribute('href', $image);
             $xml->endElement();
         }
+    }
+
+    /** Publishes the configured contact in every RSS channel when an email is set. */
+    private function writeOwner(XMLWriter $xml): void
+    {
+        $email = trim((string) ($this->config['owner_email'] ?? ''));
+        if ($email === '') {
+            return;
+        }
+
+        $xml->startElement('itunes:owner');
+        $name = trim((string) ($this->config['owner_name'] ?? ''));
+        if ($name !== '') {
+            $this->element($xml, 'itunes:name', $name);
+        }
+        $this->element($xml, 'itunes:email', $email);
+        $xml->endElement();
     }
 
     /** Advertises the companion file in both series and publisher RSS. */

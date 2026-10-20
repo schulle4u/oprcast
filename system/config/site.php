@@ -12,6 +12,9 @@ return [
     'base_url' => getenv('OPRCAST_BASE_URL') ?: null,
     // Optional base URL for relative media paths, for example: https://cdn.podcast.org/
     'cdn_url' => getenv('OPRCAST_CDN_URL') ?: null,
+    // Public contact for all RSS feeds (itunes:owner). Leave email empty to omit.
+    'owner_name' => getenv('OPRCAST_OWNER_NAME') ?: '',
+    'owner_email' => getenv('OPRCAST_OWNER_EMAIL') ?: '',
     'content_path' => dirname(__DIR__, 2) . '/content',
     // Show the HTML list of all episodes on the publisher homepage.
     'show_home_episodes' => true,

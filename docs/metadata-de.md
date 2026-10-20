@@ -234,12 +234,16 @@ In [system/config/site.php](../system/config/site.php) beeinflussen folgende Ein
 | `timezone` | `Europe/Berlin` | Zeitzone insbesondere für reine Datumsangaben ohne Offset. |
 | `base_url` | `OPRCAST_BASE_URL`, sonst aus der Anfrage | Kanonische Basis für Seiten-, Feed-, Kapitel- und lokale Medien-URLs. Für Produktion ausdrücklich konfigurieren. |
 | `cdn_url` | `OPRCAST_CDN_URL`, sonst kein CDN | Basis-URL für relative Medienpfade. |
+| `owner_name` | `OPRCAST_OWNER_NAME`, sonst leer | Optionaler Kontaktname als `itunes:owner/itunes:name` in allen RSS-Feeds. |
+| `owner_email` | `OPRCAST_OWNER_EMAIL`, sonst leer | Öffentliche Kontakt-E-Mail als `itunes:owner/itunes:email` in allen RSS-Feeds. Ohne Adresse oder bei ausschließlich Leerraum entfällt der gesamte Owner-Block. |
 | `content_path` | Projektverzeichnis plus `/content` | Wurzel der Serien und statischen Seiten. |
 | `show_home_episodes` | `true` | HTML-Episodenliste aller Serien auf der Publisher-Startseite anzeigen. Mit `false` ausblenden. |
 | `feed_limit` | `100` | Maximale Anzahl der Einträge je Feed, auch im Meta-RSS. |
 | `development` | `OPRCAST_DEBUG`, sonst `false` | Steuert die Anzeige detaillierter Fehlermeldungen; kein veröffentlichtes Podcast-Metadatum. |
 
 Beim Start werden außerdem `media_formats` aus `media.php` und `language_code` aus der konfigurierten Sprachdatei ergänzt. Website-Sprache und HTML-`lang` folgen den Browserpräferenzen mit Rückfall auf die konfigurierte Sprache; die Feed-Metadaten bleiben davon unabhängig.
+
+Mit `owner_name` und `owner_email` in `system/config/site.php` (oder den entsprechenden Umgebungsvariablen) wird ein gemeinsamer Publisher-Kontakt für Serien-RSS, Format-RSS und Meta-RSS hinterlegt. Für die Verifizierung bei Podcast-Verzeichnissen eine gültige, erreichbare E-Mail-Adresse verwenden. Leerraum am Anfang und Ende wird entfernt; der Name ist optional. Die E-Mail-Adresse ist in den Feeds öffentlich lesbar. Die Einstellungen ändern weder `itunes:author` noch Atom oder JSON Feed und lassen sich nicht im Front Matter überschreiben.
 
 Folgende Datensatzfelder erzeugt der Publisher automatisch; sie sind keine zusätzlichen redaktionellen Eingabefelder:
 
@@ -254,7 +258,7 @@ Folgende Datensatzfelder erzeugt der Publisher automatisch; sie sind keine zusä
 
 Unbekannte Front-Matter-Schlüssel werden nicht generell zurückgewiesen, erzeugen aber ohne entsprechende Implementierung keine Ausgabe. Beispielsweise wird `author` auf Show-Ebene zwar als Text akzeptiert, dort aber nicht als Show-Autor veröffentlicht. Es gibt keine allgemeine Vererbung sämtlicher Serienfelder; `explicit` und das Cover verwenden die Serienvorgabe, wenn keine eigene Angabe vorliegt. Formate und Standardformat stammen aus der Serie.
 
-Weitere Podcast-Metadaten wie Owner-/Kontakt-E-Mail, Untertitel, Personen, Funding-/Value-Angaben, Block-/Complete-Kennzeichen oder Weiterleitungs-URLs sind derzeit nicht implementiert. Sie lassen sich nicht allein durch zusätzliche Front-Matter-Felder aktivieren.
+Weitere Podcast-Metadaten wie Untertitel, Personen, Funding-/Value-Angaben, Block-/Complete-Kennzeichen oder Weiterleitungs-URLs sind derzeit nicht implementiert. Sie lassen sich nicht allein durch zusätzliche Front-Matter-Felder aktivieren.
 
 Vor der Veröffentlichung aus dem Projektverzeichnis ausführen:
 

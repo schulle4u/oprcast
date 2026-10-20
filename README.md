@@ -27,6 +27,8 @@ Episode pages optionally use a small bundled browser script for chapter seeking,
 
 Using a text editor, open the file `system/config/site.php` and configure the base URL for your podcasts (e.g. `https://podcasts.example.org`). Then, upload all the files to your webspace and open the website in your browser.
 
+For podcast directory ownership verification (for example, Spotify), configure `owner_email` and optionally `owner_name` in the same file, or set `OPRCAST_OWNER_EMAIL` and `OPRCAST_OWNER_NAME`. All RSS feeds publish this shared contact in `itunes:owner`; the email address is publicly visible. Leave the email empty to omit owner metadata.
+
 You can also start php's internal web server for local development: 
 
 ```sh
