@@ -1,7 +1,18 @@
 # OPRCast
-Flatfile podcast publisher
+OPRCast is a minimal, flatfile podcast publishing CMS for PHP webspaces. 
 
-OPRCast is a minimal, database-free podcast publisher for PHP webspaces. Podcast series and episodes are Markdown files with a small, documented front matter format. It publishes accessible HTML plus RSS 2.0, Atom, JSON Feed 1.1, and Podcasting 2.0 chapter files.
+## Features
+
+- Organise your podcasts into files and folders. There is no klunky admin panel to get in your way.
+- One content folder for each series containing audio files, covers and metadata in Markdown format. 
+- Extensive metadata support for iTunes and other podcast directories.
+- Output options include RSS 2.0, Atom, JSON Feed 1.1 and Podcasting 2.0 chapter files.
+- Multiple audio formats for each podcast, ranging from standard MP3 and M4A to lossless formats. Define your own if you need more.
+- Support for absolute audio URLs and a CDN (content delivery network) to host your audio files outside your webspace.
+- Browse and listen to all the available podcasts on a small website.
+- Display podcast transcripts and jump directly to specific chapters.
+- Add static pages with additional content for your podcasts, such as ways to get in touch.
+- A command-line tool for validating podcasts and creating new episode files.
 
 ## Requirements
 
@@ -14,11 +25,15 @@ Episode pages optionally use a small bundled browser script for chapter seeking 
 
 ## Quick start
 
+Using a text editor, open the file `system/config/site.php` and configure the base URL for your podcasts (e.g. `https://podcasts.example.org`). Then, upload all the files to your webspace and open the website in your browser.
+
+You can also start php's internal web server for local development: 
+
 ```sh
 php -S localhost:8000 router.php
 ```
 
-Open `http://localhost:8000`. For production, point the web root at this directory and set the canonical URL through the `OPRCAST_BASE_URL` environment variable.
+Open `http://localhost:8000` to access the site on your computer. 
 
 ## Content
 
@@ -62,7 +77,7 @@ explicit: false
 
 Episode notes with **Markdown**.
 
-## Kapitel
+## Chapters
 
 - 00:00 Introduction
 - 03:15 Main topic
