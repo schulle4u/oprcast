@@ -21,7 +21,7 @@ OPRCast is a minimal, flatfile podcast publishing CMS for PHP webspaces.
 - Apache 2.4 with `mod_rewrite` for production, or PHP's built-in server for development
 
 No Composer packages, database, or JavaScript runtime are required in production.
-Episode pages optionally use a small bundled browser script for chapter seeking and copying timestamp links; playback, show notes and transcripts remain available without JavaScript.
+Episode pages optionally use a small bundled browser script for chapter seeking, copying timestamp links, playback speed, skip buttons and locally remembered listening positions; playback, show notes and transcripts remain available without JavaScript.
 
 ## Quick start
 
@@ -147,6 +147,14 @@ transcript: my-next-episode.vtt
 UTF-8 `.txt` and WebVTT `.vtt` files are supported, relative to the episode's directory, including subdirectories. Transcripts stay local even when audio/images use a CDN; remote transcript URLs are not supported. The episode page displays readable text and a download link. WebVTT timings and markup are omitted from the readable version, while the original timed file is preserved for download. Series RSS (including format variants) and publisher RSS advertise the file using `podcast:transcript`.
 
 Existing Markdown chapter timestamps become links on episode pages, for example `/{series}/{episode}/?t=195`. With JavaScript enabled, clicking a timestamp seeks within the player and updates the URL. Each timestamp also has a copy-link button; if clipboard access is unavailable, use the timestamp link's context menu. Opening a timestamp link seeks after audio metadata loads, without starting playback automatically. Show notes in feeds remain unchanged.
+
+## Player comfort controls
+
+With JavaScript enabled, episode pages offer buttons to skip back 15 seconds or forward 30 seconds, plus a speed selector (0.75×, 1×, 1.25×, 1.5×, 2×). These supplement the native audio player and work with keyboard navigation. Speed changes made through the browser's native controls are reflected in the selector. Skip buttons become available when the audio metadata is ready and stay within the audio duration.
+
+After playback starts, OPRCast remembers the listening position per episode GUID in this browser's local storage. Writes are limited to five-second intervals in the audio timeline, with exact positions saved when pausing, seeking, leaving or backgrounding the page. Revisiting an episode restores that position after metadata loads, without autoplay; an explicit valid `?t=` timestamp takes precedence, including `?t=0`. Completed episodes clear their saved position. Positions at or beyond the final second are discarded on restore.
+
+Positions remain on this device in the same browser and website origin; they are not sent to the server or synchronized. Clearing the site's browser data removes them. If storage is blocked or unavailable, the playback controls continue to work without remembering positions. Without JavaScript, only the native player's controls are shown.
 
 ## Localization
 

@@ -182,6 +182,14 @@ Die Episodenseite zeigt maskierten Text und einen Downloadlink. Bei WebVTT entfa
 
 Zeitstempel im Markdown-Kapitelabschnitt werden auf Episodenseiten zu Links wie `?t=195`. Mit JavaScript springen diese im Player zur passenden Stelle und aktualisieren die URL. Je Zeitstempel gibt es eine Kopierschaltfläche; ohne Zwischenablagezugriff bleibt das Kontextmenü des Links verfügbar. Zeitlinks springen nach Laden der Audiometadaten, ohne automatische Wiedergabe. Ohne JavaScript bleiben Player, Shownotes und Transkript nutzbar. Shownotes in Feeds und Kapitel-JSON bleiben unverändert.
 
+## Komfortfunktionen des Webplayers
+
+Mit JavaScript ergänzen beschriftete Schaltflächen für 15 Sekunden zurück und 30 Sekunden vor sowie eine Geschwindigkeitsauswahl (0,75×, 1×, 1,25×, 1,5×, 2×) den nativen Player. Sie sind über die Tastatur erreichbar. Sprungtasten sind erst nach Laden der Audiometadaten verfügbar und bleiben innerhalb der Audiodauer. Änderungen der Geschwindigkeit über native Browserfunktionen werden in die Auswahl übernommen. Ohne JavaScript bleiben die Zusatzfunktionen ausgeblendet; der native Player ist weiterhin bedienbar.
+
+Nach Beginn der Wiedergabe wird die Hörposition je Episoden-GUID lokal im Browser gespeichert. Während des Hörens erfolgt dies in Fünf-Sekunden-Abschnitten der Audiozeit, bei Pause, Positionswechsel, Verlassen oder Wechsel in den Hintergrund mit der aktuellen Position. Beim nächsten Besuch wird die Position nach Laden der Metadaten ohne automatische Wiedergabe wiederhergestellt. Ein gültiger Zeitlink `?t=` hat Vorrang, auch `?t=0`. Am Episodenende wird die gespeicherte Position gelöscht; Positionen in der letzten Sekunde oder hinter dem Ende werden beim Wiederherstellen verworfen.
+
+Die Speicherung gilt nur für denselben Browser auf demselben Gerät und derselben Website-Origin; es erfolgt keine Übermittlung an den Server oder Synchronisierung. Durch Löschen der Website-Daten im Browser lassen sich die Positionen entfernen. Bei blockiertem oder nicht verfügbarem Browserspeicher funktionieren die Bedienelemente weiterhin, ohne Positionen zu speichern. Zusätzliche Front-Matter-Felder oder Konfiguration sind nicht nötig.
+
 ## Welche Metadaten erscheinen in welchem Feed?
 
 Die Tabellen oben nennen die genauen Zielfelder. Ergänzend gelten folgende Unterschiede:

@@ -427,6 +427,10 @@ if (class_exists(XMLWriter::class)) {
     [$status, $body] = $request('/test-cast/first/');
     $test($status === 200 && str_contains($body, '&lt;script&gt;alert(1)&lt;/script&gt; &amp; text.') && !str_contains($body, '<script>alert'), 'Transcript content is displayed as escaped text.');
     $test(str_contains($body, 'href="?t=30"') && str_contains($body, '/assets/player.js') && str_contains($body, 'download>'), 'Episode page includes shareable chapter links, player enhancement and transcript download.');
+    $test(preg_match('/<div[^>]*data-player-controls[^>]* hidden>/', $body) === 1, 'Additional controls stay hidden until JavaScript enables them.');
+    $test(str_contains($body, 'data-skip="-15" disabled>Back 15 seconds') && str_contains($body, 'data-skip="30" disabled>Forward 30 seconds'), 'Episode pages render localized native skip buttons that wait for media metadata.');
+    $test(str_contains($body, '<label for="playback-speed">Speed</label>') && str_contains($body, '<select id="playback-speed" data-playback-speed>'), 'The native speed selector has an explicit accessible label.');
+    $test(str_contains($body, 'data-episode-id="urn:uuid:420111d4-ff3a-425d-a921-2ab9a9054dd6"'), 'Position storage uses the permanent episode GUID.');
     foreach (['/feed.xml', '/test-cast/feed.xml', '/test-cast/feed.m4a.xml'] as $path) {
         [$status, $body] = $request($path);
         $test($status === 200 && str_contains($body, '<podcast:transcript url="https://example.test/test-cast/first/transcript.txt" type="text/plain"'), 'RSS advertises the transcript with its MIME type.');

@@ -182,6 +182,14 @@ Episode pages display escaped text and a download link. WebVTT timings, cue IDs,
 
 Timestamps in the Markdown chapter section become links such as `?t=195` on episode pages. With JavaScript, clicking seeks within the player and updates the URL. A button beside each timestamp copies its link; if clipboard access is unavailable, use the link's context menu. Timestamp links seek after audio metadata loads, without starting playback automatically. Without JavaScript, playback, show notes and transcripts remain usable. Feed show notes and chapter JSON remain unchanged.
 
+## Web player comfort controls
+
+With JavaScript, labeled buttons skip back 15 seconds or forward 30 seconds, and a speed selector offers 0.75×, 1×, 1.25×, 1.5× and 2×. All controls are keyboard accessible. Skip buttons wait for audio metadata and stay within the audio duration. Native browser speed changes are reflected in the selector. Without JavaScript, the additional controls stay hidden and the native player remains usable.
+
+After playback starts, listening positions are saved per episode GUID in this browser's local storage. During playback writes use five-second buckets in the audio timeline; pausing, seeking, leaving or backgrounding the page saves the exact position. Revisiting restores the position after metadata loads, without autoplay. A valid explicit `?t=` timestamp takes precedence, including `?t=0`. Completing an episode clears its position; saved positions within the final second or beyond the duration are discarded on restore.
+
+Positions remain in the same browser on this device and website origin; they are not sent to the server or synchronized. Clearing the website's browser data removes them. If storage is blocked or unavailable, the controls remain usable without remembering positions. No additional front matter or configuration is needed.
+
 ## Which metadata appears in each feed?
 
 The tables above list the exact destination fields. The following differences also apply:
