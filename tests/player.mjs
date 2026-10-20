@@ -8,8 +8,15 @@ function player(query = '?t=30', clipboardFails = false) {
     const windowEvents = {};
     const linkEvents = {};
     const buttonEvents = {};
+    const announcementTimers = new Map();
+    const statusChanges = [];
+    let timerId = 0;
     const audio = { readyState: 0, duration: 60, currentTime: 0, addEventListener: (name, handler) => { audioEvents[name] = handler; } };
-    const status = { textContent: '' };
+    let statusText = '';
+    const status = {
+        get textContent() { return statusText; },
+        set textContent(value) { statusText = value; statusChanges.push(value); },
+    };
     const copies = [];
     let button;
     const link = {
@@ -24,6 +31,8 @@ function player(query = '?t=30', clipboardFails = false) {
     };
     const context = {
         URL, Number, location: { href: `https://example.test/sub/cast/episode/${query}` },
+        setTimeout: (callback) => { announcementTimers.set(++timerId, callback); return timerId; },
+        clearTimeout: (id) => { announcementTimers.delete(id); },
         window: { addEventListener: (name, handler) => { windowEvents[name] = handler; } },
         history: { pushState: (_, __, url) => { context.location.href = url.href; } },
         navigator: { clipboard: { writeText: async (text) => { if (clipboardFails) throw new Error('Denied'); copies.push(text); } } },
@@ -33,7 +42,12 @@ function player(query = '?t=30', clipboardFails = false) {
         },
     };
     vm.runInNewContext(source, context);
-    return { audio, status, copies, link, get button() { return button; }, audioEvents, windowEvents, linkEvents, buttonEvents, context };
+    const flushAnnouncements = () => {
+        const callbacks = [...announcementTimers.values()];
+        announcementTimers.clear();
+        callbacks.forEach((callback) => callback());
+    };
+    return { audio, status, statusChanges, announcementTimers, flushAnnouncements, copies, link, get button() { return button; }, audioEvents, windowEvents, linkEvents, buttonEvents, context };
 }
 
 const p = player();
@@ -48,6 +62,17 @@ assert.equal(p.audio.currentTime, 45, 'Chapter links seek inside the current pla
 assert.equal(p.context.location.href, p.link.href, 'Chapter links update the shareable URL, including a subdirectory.');
 await p.buttonEvents.click();
 assert.deepEqual(p.copies, [p.link.href]);
+assert.equal(p.status.textContent, '', 'The first message is inserted in a separate task.');
+p.flushAnnouncements();
+assert.equal(p.status.textContent, 'Copied');
+await p.buttonEvents.click();
+assert.equal(p.status.textContent, '', 'Repeated copying clears the previous message.');
+p.flushAnnouncements();
+assert.deepEqual(p.statusChanges, ['', 'Copied', '', 'Copied'], 'Identical feedback is removed and reinserted for every copy.');
+await p.buttonEvents.click();
+await p.buttonEvents.click();
+assert.equal(p.announcementTimers.size, 1, 'Rapid clicks cancel superseded announcements.');
+p.flushAnnouncements();
 assert.equal(p.status.textContent, 'Copied');
 p.context.location.href = 'https://example.test/sub/cast/episode/?t=12';
 p.windowEvents.popstate();
@@ -67,6 +92,11 @@ end.audioEvents.loadedmetadata();
 assert.ok(end.audio.currentTime < 60 && end.audio.currentTime > 59, 'Times beyond the duration clamp to the end.');
 const denied = player('', true);
 await denied.buttonEvents.click();
+assert.equal(denied.status.textContent, '');
+denied.flushAnnouncements();
 assert.equal(denied.status.textContent, 'Copy manually');
 assert.equal(denied.link.focused, true, 'Clipboard denial leaves an accessible link fallback.');
+await denied.buttonEvents.click();
+denied.flushAnnouncements();
+assert.deepEqual(denied.statusChanges, ['', 'Copy manually', '', 'Copy manually'], 'Repeated failures also produce fresh announcements.');
 console.log('All player tests passed.');

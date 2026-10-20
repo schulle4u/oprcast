@@ -15,7 +15,7 @@
 <?php foreach ($enclosures as $index => $enclosure): ?><?php if ($index > 0): ?> · <?php endif; ?><a href="<?php echo htmlspecialchars($enclosure['url'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars(strtoupper($enclosure['format']), ENT_QUOTES, 'UTF-8'); ?></a><?php endforeach; ?>
     </p>
     <div class="prose" data-show-notes><?php echo $markdown->renderEpisode($episode['body']); ?></div>
-    <p class="player-status" role="status" aria-live="polite"></p>
+    <p class="player-status" role="status" aria-live="polite" aria-atomic="true"></p>
 <?php if ($transcript = $repository->transcript($episode, $baseUrl)): ?>
     <section aria-labelledby="transcript-title" class="transcript prose">
         <h2 id="transcript-title"><?php echo htmlspecialchars($localization->get('transcript'), ENT_QUOTES, 'UTF-8'); ?></h2>

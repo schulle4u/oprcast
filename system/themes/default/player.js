@@ -5,6 +5,15 @@ const episode = document.querySelector('[data-episode-player]');
 if (episode) {
     const audio = episode.querySelector('audio');
     const status = episode.querySelector('[role="status"]');
+    let announcementTimer;
+    const announce = (message) => {
+        clearTimeout(announcementTimer);
+        // Separate removal and insertion so repeated messages are announced too.
+        status.textContent = '';
+        announcementTimer = setTimeout(() => {
+            status.textContent = message;
+        }, 100);
+    };
     let pendingTime = null;
     const timestamp = (value) => value !== null && /^\d+(?:\.\d+)?$/.test(value) && Number.isFinite(Number(value)) ? Number(value) : null;
     const applyTime = () => {
@@ -47,11 +56,11 @@ if (episode) {
         copy.addEventListener('click', async () => {
             try {
                 await navigator.clipboard.writeText(url.href);
-                status.textContent = episode.dataset.copiedLabel;
+                announce(episode.dataset.copiedLabel);
             } catch (_) {
                 // A normal link is available even without Clipboard API permission.
-                status.textContent = episode.dataset.copyFailed;
                 link.focus();
+                announce(episode.dataset.copyFailed);
             }
         });
         link.after(copy);
