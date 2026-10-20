@@ -70,6 +70,7 @@ final class Validator
                     continue;
                 }
                 $this->required($episode, ['title', 'date', 'guid', 'audio', 'duration', 'episode_type'], $errors);
+                $this->localFile($repository, $episode, 'image', $errors);
                 try {
                     $repository->transcript($episode, 'https://validator.invalid');
                 } catch (ContentException $exception) {
@@ -132,6 +133,12 @@ final class Validator
      */
     private function localFile(ContentRepository $repository, array $item, string $field, array &$errors): void
     {
+        try {
+            $repository->mediaUrl($item, $field, 'https://validator.invalid');
+        } catch (ContentException $exception) {
+            $errors[] = $exception->getMessage();
+            return;
+        }
         if (!isset($item[$field]) || !is_string($item[$field]) || trim($item[$field]) === '' || filter_var($item[$field], FILTER_VALIDATE_URL) !== false || $repository->usesCdnForRelativeMedia()) {
             return;
         }

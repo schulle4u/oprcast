@@ -1,6 +1,7 @@
 <?php
 $siteTitle = $config['title'];
-$documentTitle = isset($title) ? $title . ' – ' . $siteTitle : (($episode['title'] ?? $series['title'] ?? $page['title'] ?? null) ? ($episode['title'] ?? $series['title'] ?? $page['title']) . ' – ' . $siteTitle : $siteTitle);
+$contentTitle = $title ?? $episode['title'] ?? $series['title'] ?? $page['title'] ?? $homePage['title'] ?? null;
+$documentTitle = $contentTitle !== null && $contentTitle !== $siteTitle ? $contentTitle . ' – ' . $siteTitle : $siteTitle;
 ?>
 <!doctype html>
 <html lang="<?php echo htmlspecialchars($localization->languageCode(), ENT_QUOTES, 'UTF-8'); ?>">
@@ -8,8 +9,20 @@ $documentTitle = isset($title) ? $title . ' – ' . $siteTitle : (($episode['tit
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light dark">
-    <meta name="description" content="<?php echo htmlspecialchars($siteDescription, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta name="description" content="<?php echo htmlspecialchars($pageDescription, ENT_QUOTES, 'UTF-8'); ?>">
     <title><?php echo htmlspecialchars((string) $documentTitle, ENT_QUOTES, 'UTF-8'); ?></title>
+<?php if ($canonicalUrl !== null): ?>
+    <link rel="canonical" href="<?php echo htmlspecialchars($canonicalUrl, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="<?php echo htmlspecialchars((string) $documentTitle, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta property="og:description" content="<?php echo htmlspecialchars($pageDescription, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta property="og:url" content="<?php echo htmlspecialchars($canonicalUrl, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta property="og:site_name" content="<?php echo htmlspecialchars($siteTitle, ENT_QUOTES, 'UTF-8'); ?>">
+<?php if ($pageImage !== null): ?>
+    <meta property="og:image" content="<?php echo htmlspecialchars($pageImage, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta property="og:image:alt" content="<?php echo htmlspecialchars($pageImageAlt, ENT_QUOTES, 'UTF-8'); ?>">
+<?php endif; ?>
+<?php endif; ?>
     <link rel="stylesheet" href="<?php echo htmlspecialchars($baseUrl, ENT_QUOTES, 'UTF-8'); ?>/assets/theme.css">
 <?php if (isset($episode)): ?>
     <script src="<?php echo htmlspecialchars($baseUrl, ENT_QUOTES, 'UTF-8'); ?>/assets/player.js" defer></script>

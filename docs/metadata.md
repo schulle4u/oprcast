@@ -88,6 +88,7 @@ Additional optional episode fields:
 | --- | --- | --- |
 | `draft` | Boolean; default `false` | `true` keeps the show unpublished regardless of its date. Must not be quoted. |
 | `transcript` | String | Relative path to a local UTF-8 `.txt` or `.vtt` file; website and RSS `podcast:transcript`. |
+| `image` | String; optional | Episode artwork as a relative media path or absolute HTTP(S) URL. Falls back to series artwork when omitted; see below. |
 
 ### Publication dates and scheduling
 
@@ -164,6 +165,14 @@ Additional formats can be defined in [system/config/media.php](../system/config/
 - Absolute HTTP(S) media URLs use neither the CDN base nor the series path. Other URL schemes and relative paths containing `..` or backslashes are forbidden. Relative paths are URL-encoded segment by segment for the public URL.
 - Sizes are included in RSS `enclosure` and `podcast:alternateEnclosure`, Atom enclosure links, and JSON `size_in_bytes`. The validator reports duplicate audio URLs across all series.
 
+### Episode artwork and link previews
+
+An optional `image: episode-cover.jpg` in an episode file overrides the series cover. An omitted or empty value uses the series cover. Relative paths resolve beside the episode file; absolute HTTP(S) URLs and CDN configuration work as for series artwork. Episode pages display the image with alternative text. Series RSS, format RSS and meta RSS publish it as item-level `itunes:image`; JSON Feed uses an item `image`. Atom does not receive an additional artwork field. Validation checks local episode artwork unless a CDN is configured; image format and dimensions are not inspected.
+
+Successful HTML pages include a canonical link and `og:title`, `og:description`, `og:type` (`website`), `og:url` and `og:site_name` following the [Open Graph protocol](https://ogp.me/). Series and episode pages add `og:image` and `og:image:alt` using the effective cover. Image URLs are absolute. Canonical URLs omit query parameters, including timestamps such as `?t=195`. Homepage and static pages do not select an arbitrary podcast image. Error pages omit canonical links and OG metadata. External services control the actual preview and its refresh timing.
+
+HTML meta descriptions and `og:description` use the current episode, series, static page or homepage's `description`. If omitted, the Markdown body becomes single-line plain text shortened to at most 240 display columns. Explicit descriptions remain unchanged. Feed summaries and full show notes retain their existing behavior.
+
 ## Markdown content and chapters
 
 The show body after the front matter provides the show notes on the website, RSS `content:encoded`, Atom `content` with type `html`, and JSON `content_html`. Static pages and series bodies use the same bundled Parsedown 1.8.0 parser. Supported Markdown includes ATX and Setext headings, paragraphs, nested lists, tables, images, inline and reference links, emphasis, strikethrough, blockquotes, horizontal rules, hard line breaks, inline code, and indented or fenced code blocks with optional language hints. Headings receive fragment IDs; ATX headings require a space after `#`. Raw HTML is escaped and unsafe link schemes are filtered using safe mode. Short front matter `description` fields remain plain text.
@@ -204,13 +213,13 @@ The tables above list the exact destination fields. The following differences al
 | Format RSS `/{series}/feed.{format}.xml` | Same metadata; the primary enclosure and the alternative marked as default match the requested format enabled for the series. |
 | Meta RSS `/feed.xml` | Shows from all series with the same show fields as series RSS, plus the series author and `source` containing the series title and series feed URL. Channel title and language come from the site configuration or its language file; the description comes from `content/pages/home.md`; series artwork, categories, series copyright, and series type are not included as separate channel metadata. |
 | Atom `/{series}/feed.atom` | Series title, series URL as ID, and series author; each show includes its title, GUID, publication/modification times, URL, HTML show notes, and all audio enclosures. No separate summaries, artwork, categories, or iTunes fields. |
-| JSON Feed `/{series}/feed.json` | Series title, description, language, and artwork as `icon`; each show includes its GUID, URL, title, show notes, summary, publication date, and all audio attachments including duration in seconds. No separate author, season, episode number, copyright, or explicit fields. |
+| JSON Feed `/{series}/feed.json` | Series title, description, language, and artwork as `icon`; each show includes its GUID, URL, title, show notes, summary, artwork as `image`, publication date, and all audio attachments including duration in seconds. No separate author, season, episode number, copyright, or explicit fields. |
 
 All feeds are limited to `feed_limit` entries (default `100`), newest shows first. The HTML audio player offers sources in the order of `formats`; `default_format` does not reorder that list.
 
 Customize the introduction above the series list with `content/pages/home.md`. Its front matter can contain `title` and `description`; the Markdown body appears below the title. The file is excluded from navigation. Without the file, the configured website title is displayed.
 
-The HTML meta description and meta RSS channel description come from `description` in `content/pages/home.md`, falling back to its Markdown body converted to plain text. Without the file, these descriptions are empty. A series or show's `description` does not replace this HTML meta tag. Homepage content remains independent of the browser language.
+The homepage's HTML meta description and meta RSS channel description come from `description` in `content/pages/home.md`, falling back to its Markdown body as plain text. Automatic HTML previews are shortened as described above; the feed description remains complete. Without the file, these descriptions are empty. Other HTML pages use their own content for meta descriptions. Homepage content remains independent of the browser language.
 
 ## Global configuration and generated values
 
@@ -243,7 +252,7 @@ The publisher generates the following record fields automatically; they are not 
 
 ## Support limits and validation
 
-Unknown front matter keys are not generally rejected, but they produce no output without a corresponding implementation. Similarly, fields such as `image` or `author` on a show are accepted as strings, but the current publisher does not publish them as show artwork or a show author. There is no general inheritance of all series fields; show-specific inheritance applies to `explicit`, while formats and the default format are taken from the series.
+Unknown front matter keys are not generally rejected, but they produce no output without a corresponding implementation. For example, `author` on a show is accepted as a string but is not published as a show author. There is no general inheritance of all series fields; `explicit` and artwork use the series default when no show-specific value is supplied. Formats and the default format are taken from the series.
 
 Other podcast metadata, such as owner/contact email, subtitles, people, funding/value information, block/complete flags, or redirect URLs, is not currently implemented. Adding front matter fields alone cannot enable these features.
 

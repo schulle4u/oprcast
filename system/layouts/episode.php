@@ -6,7 +6,12 @@
     data-copied-label="<?php echo htmlspecialchars($localization->get('chapter_link_copied'), ENT_QUOTES, 'UTF-8'); ?>"
     data-copy-failed="<?php echo htmlspecialchars($localization->get('chapter_copy_failed'), ENT_QUOTES, 'UTF-8'); ?>">
     <nav aria-label="<?php echo htmlspecialchars($localization->get('breadcrumbs'), ENT_QUOTES, 'UTF-8'); ?>"><a href="<?php echo htmlspecialchars($baseUrl . '/' . $series['slug'] . '/', ENT_QUOTES, 'UTF-8'); ?>">← <?php echo htmlspecialchars($series['title'], ENT_QUOTES, 'UTF-8'); ?></a></nav>
-    <header><h1><?php echo htmlspecialchars($episode['title'], ENT_QUOTES, 'UTF-8'); ?></h1><p class="meta"><time datetime="<?php echo $episode['date']->format('c'); ?>"><?php echo htmlspecialchars($localization->formatEpisodeDate($episode['date']), ENT_QUOTES, 'UTF-8'); ?></time></p></header>
+    <header<?php echo $pageImage !== null ? ' class="podcast-header"' : ''; ?>>
+<?php if ($pageImage !== null): ?>
+        <img src="<?php echo htmlspecialchars($pageImage, ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($pageImageAlt, ENT_QUOTES, 'UTF-8'); ?>" width="320" height="320">
+<?php endif; ?>
+        <div><h1><?php echo htmlspecialchars($episode['title'], ENT_QUOTES, 'UTF-8'); ?></h1><p class="meta"><time datetime="<?php echo $episode['date']->format('c'); ?>"><?php echo htmlspecialchars($localization->formatEpisodeDate($episode['date']), ENT_QUOTES, 'UTF-8'); ?></time></p></div>
+    </header>
 <?php $enclosures = $repository->enclosures($series, $episode, $baseUrl); ?>
     <figure>
         <audio controls preload="metadata">

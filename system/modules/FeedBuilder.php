@@ -100,6 +100,7 @@ final class FeedBuilder
                 }
             }
             $this->element($xml, 'itunes:episodeType', (string) ($episode['episode_type'] ?? 'full'));
+            $this->writeEpisodeImage($xml, $repository, $series, $episode, $baseUrl);
             $this->writeTranscript($xml, $repository, $episode, $baseUrl);
             $this->element($xml, 'itunes:explicit', $this->bool($episode['explicit'] ?? $series['explicit'] ?? false));
             if ($episode['chapters'] !== []) {
@@ -181,6 +182,7 @@ final class FeedBuilder
                 }
             }
             $this->element($xml, 'itunes:episodeType', (string) ($episode['episode_type'] ?? 'full'));
+            $this->writeEpisodeImage($xml, $repository, $series, $episode, $baseUrl);
             $this->writeTranscript($xml, $repository, $episode, $baseUrl);
             $this->element($xml, 'itunes:explicit', $this->bool($episode['explicit'] ?? $series['explicit'] ?? false));
             if ($episode['chapters'] !== []) {
@@ -268,6 +270,9 @@ final class FeedBuilder
                 }
                 $attachments[] = $attachment;
             }
+            if ($image = $repository->episodeImageUrl($series, $episode, $baseUrl)) {
+                $item['image'] = $image;
+            }
             if ($attachments !== []) {
                 $item['attachments'] = $attachments;
             }
@@ -306,6 +311,16 @@ final class FeedBuilder
         $xml->setIndent(true);
         $xml->startDocument('1.0', 'UTF-8');
         return $xml;
+    }
+
+    /** Publishes the same artwork used by the episode page and link previews. */
+    private function writeEpisodeImage(XMLWriter $xml, ContentRepository $repository, array $series, array $episode, string $baseUrl): void
+    {
+        if ($image = $repository->episodeImageUrl($series, $episode, $baseUrl)) {
+            $xml->startElement('itunes:image');
+            $xml->writeAttribute('href', $image);
+            $xml->endElement();
+        }
     }
 
     /** Advertises the companion file in both series and publisher RSS. */

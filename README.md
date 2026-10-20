@@ -116,7 +116,7 @@ description: Independent podcasts about the things we care about.
 Discover our **podcasts**, meet the hosts, and find your next episode.
 ```
 
-The title and Markdown body replace the default introduction. Without this file, the homepage displays the configured site title. `home.md` is omitted from navigation, while remaining accessible at `/pages/home/`. Its optional `description` supplies the site's HTML meta description and publisher RSS description; if omitted, the Markdown body is converted to plain text. Without `home.md`, these descriptions are empty. Homepage content is also displayed when no series have been published yet.
+The title and Markdown body replace the default introduction. Without this file, the homepage displays the configured site title. `home.md` is omitted from navigation, while remaining accessible at `/pages/home/`. Its optional `description` supplies the homepage's HTML meta description and publisher RSS description; if omitted, the Markdown body is converted to plain text (shortened for the HTML preview). Without `home.md`, these descriptions are empty. Homepage content is also displayed when no series have been published yet.
 
 Supported front matter values are strings, integers, booleans, and simple lists. Static pages (including the homepage introduction), series descriptions, and episode show notes use [Parsedown 1.8.0](https://github.com/erusev/parsedown/releases/tag/1.8.0). Supported Markdown includes ATX and Setext headings, nested ordered and unordered lists, tables, images, inline and reference links, emphasis, strikethrough, blockquotes, horizontal rules, hard line breaks, inline code, and indented or fenced code blocks with optional language hints. Headings retain fragment IDs; ATX headings require a space after `#`. Raw HTML is escaped and unsafe link schemes are filtered using Parsedown's safe mode. Short front matter `description` fields remain plain text.
 
@@ -149,6 +149,21 @@ UTF-8 `.txt` and WebVTT `.vtt` files are supported, relative to the episode's di
 Existing Markdown chapter timestamps become links on episode pages, for example `/{series}/{episode}/?t=195`. With JavaScript enabled, clicking a timestamp seeks within the player and updates the URL. Each timestamp also has a copy-link button; if clipboard access is unavailable, use the timestamp link's context menu. Opening a timestamp link seeks after audio metadata loads, without starting playback automatically. Show notes in feeds remain unchanged.
 
 Episode pages also provide links to the immediately previous and next published episode in the same series below the show notes and chapters. Links follow publication dates, as in the series index; drafts and scheduled episodes are excluded. At either end only the available direction is shown, and a single-episode series has no navigation block. This works without JavaScript.
+
+## Episode artwork and link previews
+
+Set an optional cover in an episode's front matter:
+
+```yaml
+image: episode-cover.jpg
+description: A short summary of this episode.
+```
+
+An omitted or empty `image` falls back to the series cover. Local paths are relative to the episode file; absolute HTTP(S) URLs and the existing CDN setting work as for series artwork. The episode page displays the cover, RSS variants include it as item-level `itunes:image`, and JSON Feed includes an item `image`. Validation checks local episode covers unless a CDN is configured. Dimensions and image formats are not inspected.
+
+Successful HTML pages include a canonical link and [Open Graph](https://ogp.me/) metadata: `og:title`, `og:description`, `og:type`, `og:url` and `og:site_name`. Series and episode pages also include `og:image` and `og:image:alt`. Images use absolute URLs; canonical URLs omit query parameters such as playback timestamps. Homepage and static pages do not select an arbitrary podcast image as their preview.
+
+HTML and preview descriptions now use the current episode, series, static page or homepage's `description`. If missing, its Markdown body becomes a single-line plain-text preview shortened to 240 display columns; explicit descriptions are preserved. RSS/Atom/JSON show notes and summaries keep their existing behavior. Error pages do not advertise canonical or Open Graph metadata. Preview services decide how and when they display the supplied metadata.
 
 ## Player comfort controls
 

@@ -255,6 +255,12 @@ final class ContentRepository
         return rtrim($baseUrl, '/') . '/content/' . rawurlencode((string) $item['series_slug']) . '/' . $path;
     }
 
+    /** Resolves episode artwork, falling back to the series cover when omitted. */
+    public function episodeImageUrl(array $series, array $episode, string $baseUrl): ?string
+    {
+        return $this->mediaUrl($episode, 'image', $baseUrl) ?? $this->mediaUrl($series, 'image', $baseUrl);
+    }
+
     /** Reports whether relative media paths are published through a configured CDN. */
     public function usesCdnForRelativeMedia(): bool
     {

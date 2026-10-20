@@ -149,11 +149,26 @@ final class Application
         $data['config'] = $this->config;
         $data['baseUrl'] = $this->baseUrl();
         $data['pages'] = $template === 'error' ? [] : $this->repository->pages(true);
-        $data['siteDescription'] = '';
-        foreach ($data['pages'] as $navigationPage) {
-            if ($navigationPage['slug'] === 'home') {
-                $data['siteDescription'] = $navigationPage['description'] ?? $this->markdown->text($navigationPage['body']);
-            }
+        $item = $data['episode'] ?? $data['series'] ?? $data['page'] ?? $data['homePage'] ?? null;
+        $fallbackDescription = preg_replace('/\s+/u', ' ', $this->markdown->text($item['body'] ?? '')) ?? '';
+        $data['pageDescription'] = $item['description'] ?? mb_strimwidth(trim($fallbackDescription), 0, 240, '…', 'UTF-8');
+        $data['canonicalUrl'] = $status === 200 ? $data['baseUrl'] . match ($template) {
+            'episode' => '/' . $data['series']['slug'] . '/' . $data['episode']['slug'] . '/',
+            'series' => '/' . $data['series']['slug'] . '/',
+            'page' => '/pages/' . $data['page']['slug'] . '/',
+            default => '/',
+        } : null;
+        $data['pageImage'] = null;
+        $data['pageImageAlt'] = '';
+        if (isset($data['series'])) {
+            $series = $data['series'];
+            $episode = $data['episode'] ?? null;
+            $data['pageImage'] = $episode !== null
+                ? $this->repository->episodeImageUrl($series, $episode, $data['baseUrl'])
+                : $this->repository->mediaUrl($series, 'image', $data['baseUrl']);
+            $imageTitle = $episode !== null && $this->repository->mediaUrl($episode, 'image', $data['baseUrl']) !== null
+                ? $episode['title'] : $series['title'];
+            $data['pageImageAlt'] = $this->localization->get('cover_alt', ['title' => $imageTitle]);
         }
         $data['pages'] = array_values(array_filter($data['pages'], static fn (array $page): bool => $page['slug'] !== 'home'));
         $data['repository'] = $this->repository;

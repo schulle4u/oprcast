@@ -88,6 +88,7 @@ Weitere optionale Episodenfelder:
 | --- | --- | --- |
 | `draft` | Boolean; Standard `false` | `true` hält die Show unabhängig vom Datum unveröffentlicht. Nicht zitieren. |
 | `transcript` | Text | Relativer Pfad zu einer lokalen UTF-8-Datei `.txt` oder `.vtt`; Website und RSS-`podcast:transcript`. |
+| `image` | Text; optional | Episodencover als relativer Medienpfad oder absolute HTTP(S)-URL. Ohne eigenes Cover wird das Seriencover verwendet; Einzelheiten unten. |
 
 ### Veröffentlichungsdatum und Planung
 
@@ -164,6 +165,14 @@ Weitere Formate lassen sich in [system/config/media.php](../system/config/media.
 - Absolute HTTP(S)-Medien-URLs verwenden weder die CDN-Basis noch den Serienpfad. Andere URL-Schemata sowie relative Pfade mit `..` oder Backslashes sind unzulässig. Relative Pfade werden für die öffentliche URL segmentweise URL-kodiert.
 - Die Größen fließen in RSS-`enclosure` und `podcast:alternateEnclosure`, Atom-Enclosure-Links sowie JSON-`size_in_bytes` ein. Doppelt verwendete Audio-URLs werden serienübergreifend vom Validator gemeldet.
 
+### Episodencover und Linkvorschauen
+
+Ein optionales `image: episoden-cover.jpg` in der Episoden-Datei überschreibt das Seriencover. Ohne Feld oder bei leerem Wert wird das Seriencover verwendet. Relative Pfade werden neben der Episoden-Datei aufgelöst; absolute HTTP(S)-URLs und die CDN-Konfiguration funktionieren wie beim Seriencover. Auf der Episodenseite wird das Bild mit Alternativtext angezeigt. Serien-RSS, Format-RSS und Meta-RSS veröffentlichen es als `itunes:image` am Item; JSON Feed als `image` pro Item. Atom erhält kein zusätzliches Coverfeld. Der Validator prüft lokale Episodencover auf Existenz, sofern kein CDN konfiguriert ist; Bildformat und Abmessungen werden nicht geprüft.
+
+Erfolgreiche HTML-Seiten enthalten einen kanonischen Link sowie `og:title`, `og:description`, `og:type` (`website`), `og:url` und `og:site_name` nach dem [Open-Graph-Protokoll](https://ogp.me/). Serien- und Episodenseiten ergänzen `og:image` und `og:image:alt` mit dem jeweils wirksamen Cover. Bild-URLs sind absolut. Kanonische URLs enthalten keine Abfrageparameter, also beispielsweise kein `?t=195`. Startseite und statische Seiten erhalten kein automatisch ausgewähltes Podcastbild. Fehlerseiten erzeugen keine kanonischen Links oder OG-Metatags. Die tatsächliche Vorschau und deren Aktualisierung bestimmt der jeweilige externe Dienst.
+
+Für die HTML-Metabeschreibung und `og:description` gilt das `description`-Feld des jeweiligen Inhalts: Episode, Serie, statische Seite oder Startseite. Ohne Feld wird dessen Markdown-Text als einzeiliger Klartext auf höchstens 240 Anzeigespalten gekürzt. Explizite Beschreibungen bleiben unverändert. Feed-Beschreibungen und vollständige Shownotes behalten ihr bisheriges Verhalten.
+
 ## Markdown-Inhalt und Kapitel
 
 Der Show-Text nach dem Front Matter bildet die Shownotes auf der Website, RSS-`content:encoded`, Atom-`content` mit Typ `html` und JSON-`content_html`. Statische Seiten und Serientexte nutzen denselben mitgelieferten Parser Parsedown 1.8.0. Unterstützt werden ATX- und Setext-Überschriften, Absätze, verschachtelte Listen, Tabellen, Bilder, Inline- und Referenzlinks, Hervorhebungen, Durchstreichungen, Blockzitate, horizontale Linien, harte Zeilenumbrüche, Inline-Code sowie eingerückte oder eingezäunte Codeblöcke mit optionaler Sprachangabe. Überschriften erhalten Fragment-IDs; ATX-Überschriften benötigen ein Leerzeichen nach `#`. Der Safe Mode maskiert rohes HTML und filtert unsichere Linkschemata. Kurze `description`-Felder im Front Matter bleiben Klartext.
@@ -204,13 +213,13 @@ Die Tabellen oben nennen die genauen Zielfelder. Ergänzend gelten folgende Unte
 | Format-RSS `/{serie}/feed.{format}.xml` | Gleiche Metadaten; primäres Enclosure und als Standard markierte Alternative entsprechen dem angeforderten, für die Serie aktivierten Format. |
 | Meta-RSS `/feed.xml` | Shows aller Serien mit denselben Show-Feldern wie Serien-RSS, zusätzlich Serienautor und `source` mit Serientitel und Serienfeed-URL. Kanal-Titel und Sprache stammen aus der Site-Konfiguration beziehungsweise deren Sprachdatei, die Beschreibung aus `content/pages/home.md`; Seriencover, Kategorien, Serien-Copyright und Serientyp werden nicht als eigene Kanalmetadaten übernommen. |
 | Atom `/{serie}/feed.atom` | Serientitel, Serien-URL als ID und Serienautor; pro Show Titel, GUID, Veröffentlichungs-/Änderungszeit, URL, HTML-Shownotes und alle Audio-Enclosures. Keine separaten Kurzbeschreibungen, Cover, Kategorien oder iTunes-Felder. |
-| JSON Feed `/{serie}/feed.json` | Serientitel, Beschreibung, Sprache und Cover als `icon`; pro Show GUID, URL, Titel, Shownotes, Kurzbeschreibung, Veröffentlichungsdatum und alle Audio-Attachments einschließlich Dauer in Sekunden. Keine separaten Autoren-, Staffel-, Folgen-, Copyright- oder Explicit-Felder. |
+| JSON Feed `/{serie}/feed.json` | Serientitel, Beschreibung, Sprache und Cover als `icon`; pro Show GUID, URL, Titel, Shownotes, Kurzbeschreibung, Cover als `image`, Veröffentlichungsdatum und alle Audio-Attachments einschließlich Dauer in Sekunden. Keine separaten Autoren-, Staffel-, Folgen-, Copyright- oder Explicit-Felder. |
 
 Alle Feeds sind auf `feed_limit` Einträge begrenzt (standardmäßig `100`), neueste Shows zuerst. Der HTML-Audioplayer bietet Quellen in der Reihenfolge von `formats` an; `default_format` sortiert diese Liste nicht um.
 
 Die Einleitung oberhalb der Serienliste lässt sich mit `content/pages/home.md` gestalten. Das Front Matter kann `title` und `description` enthalten; der Markdown-Inhalt erscheint unter dem Titel. Die Datei erscheint nicht zusätzlich in der Navigation. Ohne Datei wird der konfigurierte Website-Titel angezeigt.
 
-Die HTML-Metabeschreibung und die Kanalbeschreibung des Meta-RSS stammen aus `description` in `content/pages/home.md`, ersatzweise aus dessen Markdown-Inhalt als Klartext. Ohne Datei bleiben die Beschreibungen leer. Die `description` einer Serie oder Show ersetzt dieses HTML-Meta-Tag nicht. Der Inhalt von `home.md` bleibt unabhängig von der Browsersprache.
+Die HTML-Metabeschreibung der Startseite und die Kanalbeschreibung des Meta-RSS stammen aus `description` in `content/pages/home.md`, ersatzweise aus dessen Markdown-Inhalt als Klartext. Die automatisch erzeugte HTML-Vorschau wird wie oben beschrieben gekürzt; die Feed-Beschreibung bleibt vollständig. Ohne Datei bleiben diese Beschreibungen leer. Andere HTML-Seiten verwenden ihre eigenen Inhalte für die Metabeschreibung. Der Inhalt von `home.md` bleibt unabhängig von der Browsersprache.
 
 ## Globale Konfiguration und automatisch erzeugte Angaben
 
@@ -243,7 +252,7 @@ Folgende Datensatzfelder erzeugt der Publisher automatisch; sie sind keine zusä
 
 ## Unterstützungsgrenzen und Validierung
 
-Unbekannte Front-Matter-Schlüssel werden nicht generell zurückgewiesen, erzeugen aber ohne entsprechende Implementierung keine Ausgabe. Ebenso werden beispielsweise `image` oder `author` auf Show-Ebene zwar als Text akzeptiert, vom aktuellen Publisher dort aber nicht als Show-Cover oder Show-Autor veröffentlicht. Es gibt keine allgemeine Vererbung sämtlicher Serienfelder; die Show-spezifische Vererbung betrifft `explicit`, während Formate und Standardformat aus der Serie verwendet werden.
+Unbekannte Front-Matter-Schlüssel werden nicht generell zurückgewiesen, erzeugen aber ohne entsprechende Implementierung keine Ausgabe. Beispielsweise wird `author` auf Show-Ebene zwar als Text akzeptiert, dort aber nicht als Show-Autor veröffentlicht. Es gibt keine allgemeine Vererbung sämtlicher Serienfelder; `explicit` und das Cover verwenden die Serienvorgabe, wenn keine eigene Angabe vorliegt. Formate und Standardformat stammen aus der Serie.
 
 Weitere Podcast-Metadaten wie Owner-/Kontakt-E-Mail, Untertitel, Personen, Funding-/Value-Angaben, Block-/Complete-Kennzeichen oder Weiterleitungs-URLs sind derzeit nicht implementiert. Sie lassen sich nicht allein durch zusätzliche Front-Matter-Felder aktivieren.
 

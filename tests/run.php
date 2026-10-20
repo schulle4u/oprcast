@@ -360,6 +360,67 @@ if (class_exists(XMLWriter::class)) {
         }
         return [http_response_code(), $body];
     };
+    // Artwork and metadata must agree across HTML, previews and podcast feeds.
+    $metaValue = static function (string $body, string $name): ?string {
+        if (preg_match('/<meta (?:name|property)="' . preg_quote($name, '/') . '" content="([^"]*)">/u', $body, $match) !== 1) return null;
+        return html_entity_decode($match[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    };
+    $coverEpisodeFile = $fixture . '/test-cast/2025-01-01-first.md';
+    [$status, $body] = $request('/test-cast/first/?t=30');
+    $test($status === 200 && $metaValue($body, 'og:url') === 'https://example.test/test-cast/first/' && str_contains($body, '<link rel="canonical" href="https://example.test/test-cast/first/">'), 'Canonical and Open Graph URLs exclude playback parameters.');
+    $test($metaValue($body, 'og:title') === 'First episode – Test Site' && $metaValue($body, 'og:site_name') === 'Test Site' && $metaValue($body, 'og:type') === 'website', 'Open Graph publishes the current document title, publisher and object type.');
+    $test($metaValue($body, 'og:image') === 'https://example.test/content/test-cast/cover.jpg' && $metaValue($body, 'og:image:alt') === 'Cover of Test Cast', 'Episode previews fall back to series artwork and its label.');
+    $test(str_contains($body, '<img src="https://example.test/content/test-cast/cover.jpg" alt="Cover of Test Cast"'), 'Episode pages display the fallback series cover.');
+    $fallbackDescription = $metaValue($body, 'description');
+    $test($fallbackDescription === $metaValue($body, 'og:description') && str_starts_with($fallbackDescription ?? '', 'Episode notes.') && !str_contains($fallbackDescription ?? '', "\n"), 'Missing descriptions become normalized plain-text previews from the episode notes.');
+    file_put_contents($fixture . '/test-cast/episode cover.jpg', 'episode-cover');
+    $artworkSource = str_replace('episode: 1', "episode: 1\nimage: episode cover.jpg\ndescription: An \"episode\" & friends.", $cdnFixtureSource);
+    file_put_contents($coverEpisodeFile, $artworkSource);
+    $test((new Validator())->validate($repository) === [], 'Validator accepts optional local episode artwork.');
+    [$status, $body] = $request('/test-cast/first/');
+    $episodeImageUrl = 'https://example.test/content/test-cast/episode%20cover.jpg';
+    $test($metaValue($body, 'og:image') === $episodeImageUrl && $metaValue($body, 'og:image:alt') === 'Cover of First episode' && str_contains($body, '<img src="' . $episodeImageUrl . '" alt="Cover of First episode"'), 'Own episode artwork overrides the series cover on pages and previews.');
+    $test($metaValue($body, 'description') === 'An "episode" & friends.' && $metaValue($body, 'og:description') === 'An "episode" & friends.' && str_contains($body, 'content="An &quot;episode&quot; &amp; friends."'), 'Explicit episode descriptions populate both escaped HTML and Open Graph metadata.');
+    foreach (['/feed.xml', '/test-cast/feed.xml', '/test-cast/feed.m4a.xml'] as $path) {
+        [$status, $body] = $request($path);
+        $document = simplexml_load_string($body);
+        $artwork = $document->channel->item->children('http://www.itunes.com/dtds/podcast-1.0.dtd')->image;
+        $test($status === 200 && (string) $artwork->attributes()['href'] === $episodeImageUrl, 'All RSS variants publish episode artwork on the item.');
+    }
+    [$status, $body] = $request('/test-cast/feed.json');
+    $jsonArtwork = json_decode($body, true, flags: JSON_THROW_ON_ERROR);
+    $test($status === 200 && $jsonArtwork['items'][0]['image'] === $episodeImageUrl && $jsonArtwork['icon'] === 'https://example.test/content/test-cast/cover.jpg', 'JSON Feed distinguishes episode images from the series icon.');
+    $coverEpisode = $repository->episode('test-cast', 'first');
+    $test($cdnRepository->episodeImageUrl($series, $coverEpisode, 'https://example.test') === 'https://cdn.podcast.org/episode%20cover.jpg', 'Relative episode covers use the configured CDN.');
+    $savedApplication = $application;
+    $application = new Application(array_replace($appConfig, ['base_url' => 'https://example.test/podcasts/']), $cdnRepository, $markdown, $feeds, $english);
+    [$status, $body] = $request('/podcasts/test-cast/first/?t=30', ['SCRIPT_NAME' => '/podcasts/index.php']);
+    $test($status === 200 && $metaValue($body, 'og:url') === 'https://example.test/podcasts/test-cast/first/' && $metaValue($body, 'og:image') === 'https://cdn.podcast.org/episode%20cover.jpg', 'Preview URLs honor a subdirectory installation and CDN configuration.');
+    $application = $savedApplication;
+    foreach (['../cover.jpg', 'missing-cover.jpg', 'ftp://images.example.test/cover.jpg'] as $invalidImage) {
+        file_put_contents($coverEpisodeFile, str_replace('image: episode cover.jpg', 'image: ' . $invalidImage, $artworkSource));
+        $test((new Validator())->validate($repository) !== [], 'Unsafe or missing episode covers are rejected by validation.');
+    }
+    $test((new Validator())->validate($cdnRepository) !== [], 'Unsupported image schemes are rejected even when a CDN is configured.');
+    file_put_contents($coverEpisodeFile, str_replace('image: episode cover.jpg', 'image: missing-cover.jpg', $artworkSource));
+    $test((new Validator())->validate($cdnRepository) === [], 'CDN covers do not require a local image file.');
+    $remoteImage = 'https://images.example.test/episode.jpg?one=1&two=2';
+    file_put_contents($coverEpisodeFile, str_replace('image: episode cover.jpg', 'image: ' . $remoteImage, $artworkSource));
+    [$status, $body] = $request('/test-cast/first/');
+    $test($status === 200 && $metaValue($body, 'og:image') === $remoteImage && (new Validator())->validate($repository) === [], 'Absolute HTTPS covers are preserved and safely escaped.');
+    file_put_contents($coverEpisodeFile, str_replace('image: episode cover.jpg', 'image: ""', $artworkSource));
+    [$status, $body] = $request('/test-cast/first/');
+    $test($metaValue($body, 'og:image') === 'https://example.test/content/test-cast/cover.jpg', 'Empty optional episode artwork uses the series fallback.');
+    file_put_contents($coverEpisodeFile, $cdnFixtureSource . "\n\n" . str_repeat('Long **notes** & text. ', 100));
+    [$status, $body] = $request('/test-cast/first/');
+    $test(mb_strwidth($metaValue($body, 'description') ?? '', 'UTF-8') <= 240 && str_ends_with($metaValue($body, 'description') ?? '', '…'), 'Automatic previews of long Markdown notes are shortened.');
+    file_put_contents($coverEpisodeFile, $cdnFixtureSource);
+    unlink($fixture . '/test-cast/episode cover.jpg');
+    [$status, $body] = $request('/test-cast/');
+    $test($metaValue($body, 'description') === 'A test podcast' && $metaValue($body, 'og:url') === 'https://example.test/test-cast/' && $metaValue($body, 'og:image') === 'https://example.test/content/test-cast/cover.jpg', 'Series previews use series metadata and artwork.');
+    [$status, $body] = $request('/missing/route/');
+    $test($status === 404 && $metaValue($body, 'og:url') === null && !str_contains($body, 'rel="canonical"'), 'Error pages do not advertise a successful canonical page or Open Graph object.');
+
     // Episode navigation follows publication order within one series only.
     [$status, $body] = $request('/test-cast/first/');
     $test($status === 200 && !str_contains($body, 'class="episode-navigation"'), 'A series with one published episode has no empty episode navigation.');
@@ -567,6 +628,9 @@ if (class_exists(XMLWriter::class)) {
     $test(str_contains($body, '<a href="/pages/valid/">About us</a>') && !str_contains($body, '<script>'), 'Homepage content uses the safe Markdown renderer.');
     $test(!str_contains($body, '/pages/home/'), 'Home content is excluded from navigation.');
     $test(str_contains($body, '<meta name="description" content="Independent &amp; personal">'), 'Homepage front matter supplies the HTML meta description.');
+    $test($metaValue($body, 'og:title') === 'Welcome & hello – Test Site' && $metaValue($body, 'og:description') === 'Independent & personal' && $metaValue($body, 'og:url') === 'https://example.test/' && $metaValue($body, 'og:image') === null, 'Homepage previews use homepage content without inventing artwork.');
+    [$status, $body] = $request('/test-cast/first/');
+    $test($metaValue($body, 'description') !== 'Independent & personal' && str_starts_with($metaValue($body, 'description') ?? '', 'Episode notes.'), 'Episode previews do not inherit the homepage description.');
     [$status, $body] = $request('/feed.xml');
     $test(str_contains($body, '<description>Independent &amp; personal</description>'), 'Homepage description supplies the publisher feed description.');
     file_put_contents($fixture . '/pages/home.md', 'A **personal** introduction.');
@@ -585,6 +649,7 @@ if (class_exists(XMLWriter::class)) {
     $test($status === 200 && str_contains($body, 'Valid page') && !str_contains($body, '>Broken<'), 'Broken navigation pages do not disable the homepage or valid navigation.');
     [$status, $body] = $request('/pages/valid/');
     $test($status === 200 && str_contains($body, 'Valid body'), 'Valid static pages remain accessible alongside a broken page.');
+    $test($metaValue($body, 'og:title') === 'Valid page – Test Site' && $metaValue($body, 'og:url') === 'https://example.test/pages/valid/' && str_starts_with($metaValue($body, 'description') ?? '', 'Valid body') && $metaValue($body, 'og:image') === null, 'Static pages publish their own title, description and canonical URL.');
     $test(str_contains($body, '<img src="cover.jpg" alt="Cover" />') && str_contains($body, '<td><strong>Static page</strong></td>'), 'Static pages publish Parsedown images and tables.');
     [$status, $body] = $request('/test-cast/');
     $test($status === 200 && str_contains($body, '<td><strong>Stereo</strong></td>'), 'Series pages publish Parsedown descriptions.');
