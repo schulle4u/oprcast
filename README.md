@@ -11,7 +11,7 @@ OPRCast is a minimal, flatfile podcast publishing CMS for PHP webspaces.
 - Support for absolute audio URLs and a CDN (content delivery network) to host your audio files outside your webspace.
 - Browse and listen to all the available podcasts on a small website.
 - Display podcast transcripts and jump directly to specific chapters.
-- Add static pages with additional content for your podcasts, such as ways to get in touch.
+- Add additional content pages for your podcasts, such as ways to get in touch.
 - A command-line tool for validating podcasts and creating new episode files.
 - An optional command-line export of pages and feeds for static hosting.
 
