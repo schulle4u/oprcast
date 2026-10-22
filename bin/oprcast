@@ -9,6 +9,21 @@ use Oprcast\EpisodeCreator;
 $application = require dirname(__DIR__) . '/system/bootstrap.php';
 $command = $argv[1] ?? 'help';
 
+if ($command === 'build') {
+    if (count($argv) !== 3) {
+        fwrite(STDERR, "Usage: php bin/oprcast build <public-directory>\n");
+        exit(2);
+    }
+    try {
+        $count = (new \Oprcast\StaticBuilder())->build($application, $argv[2]);
+        fwrite(STDOUT, "Static build complete: {$count} files written to {$argv[2]}\n");
+        exit(0);
+    } catch (\Throwable $exception) {
+        fwrite(STDERR, $exception->getMessage() . "\n");
+        exit(1);
+    }
+}
+
 if ($command === 'new') {
     if (count($argv) !== 4) {
         fwrite(STDERR, "Usage: php bin/oprcast new <series> <episode-slug>\n");
@@ -25,7 +40,7 @@ if ($command === 'new') {
 }
 
 if ($command !== 'validate') {
-    fwrite(STDOUT, "OPRCast\n\nUsage:\n  php bin/oprcast validate\n  php bin/oprcast new <series> <episode-slug>\n");
+    fwrite(STDOUT, "OPRCast\n\nUsage:\n  php bin/oprcast validate\n  php bin/oprcast new <series> <episode-slug>\n  php bin/oprcast build <public-directory>\n");
     exit($command === 'help' ? 0 : 2);
 }
 

@@ -14,6 +14,23 @@ use Throwable;
  */
 final class Application
 {
+    private bool $building = false;
+
+    /** Uses the configured public URL and language, independently of HTTP request state. */
+    public function forBuild(): self
+    {
+        $url = $this->config['base_url'] ?? null;
+        if (!is_string($url) || filter_var($url, FILTER_VALIDATE_URL) === false
+            || !in_array(strtolower((string) parse_url($url, PHP_URL_SCHEME)), ['http', 'https'], true)
+            || parse_url($url, PHP_URL_QUERY) !== null || parse_url($url, PHP_URL_FRAGMENT) !== null) {
+            throw new ContentException('Static builds require an absolute HTTP(S) base_url without query or fragment.');
+        }
+        $application = new self($this->config, $this->repository->atTime(new \DateTimeImmutable('now')), $this->markdown, $this->feeds,
+            new Localization((string) $this->config['language'], dirname(__DIR__) . '/lang'));
+        $application->building = true;
+        return $application;
+    }
+
     /**
      * @param array<string, mixed> $config Runtime and site configuration.
      */
@@ -37,51 +54,47 @@ final class Application
     {
         try {
             if (!in_array($_SERVER['REQUEST_METHOD'] ?? 'GET', ['GET', 'HEAD'], true)) {
-                $this->send('Method not allowed', 'text/plain; charset=utf-8', 405, ['Allow' => 'GET, HEAD']);
+                $this->send('Method not allowed', 'text/plain; charset=utf-8', 405, ['Allow' => 'GET, HEAD'])->emit();
                 return;
             }
-            $this->dispatch($this->requestPath());
+            $this->render($this->requestPath())->emit();
         } catch (NotFoundException $exception) {
             $this->html('error', [
                 'title' => $this->localization->get('not_found_title'),
                 'message' => $this->localization->get('not_found_message'),
-            ], 404);
+            ], 404)->emit();
         } catch (Throwable $exception) {
             error_log((string) $exception);
             $message = $this->config['development'] ? $exception->getMessage() : $this->localization->get('server_error_message');
-            $this->html('error', ['title' => $this->localization->get('server_error_title'), 'message' => $message], 500);
+            $this->html('error', ['title' => $this->localization->get('server_error_title'), 'message' => $message], 500)->emit();
         }
     }
 
-    /** Resolves a normalized request path and emits the corresponding response. */
-    private function dispatch(string $path): void
+    /** Renders a normalized path without emitting headers or swallowing build errors. */
+    public function render(string $path): Response
     {
         if ($path === '/') {
-            $this->html('home', [
+            return $this->html('home', [
                 'homePage' => $this->repository->homePage(),
                 'seriesList' => $this->repository->series(),
                 'episodes' => ($this->config['show_home_episodes'] ?? true) ? $this->repository->allEpisodes() : [],
             ]);
-            return;
         }
         if ($path === '/feed.xml') {
             $series = $this->repository->series();
             $episodes = $this->repository->allEpisodes();
-            $this->conditional(
+            return $this->conditional(
                 $this->feeds->metaRss($series, $episodes, $this->baseUrl(), $this->repository),
                 'application/rss+xml; charset=utf-8',
             );
-            return;
         }
         if ($path === '/assets/theme.css') {
             $css = file_get_contents(dirname(__DIR__) . '/themes/default/style.css');
-            $this->send($css === false ? '' : $css, 'text/css; charset=utf-8', 200, ['Cache-Control' => 'public, max-age=3600']);
-            return;
+            return $this->send($css === false ? '' : $css, 'text/css; charset=utf-8', 200, ['Cache-Control' => 'public, max-age=3600']);
         }
         if ($path === '/assets/player.js') {
             $script = file_get_contents(dirname(__DIR__) . '/themes/default/player.js');
-            $this->send($script === false ? '' : $script, 'text/javascript; charset=utf-8', 200, ['Cache-Control' => 'public, max-age=3600']);
-            return;
+            return $this->send($script === false ? '' : $script, 'text/javascript; charset=utf-8', 200, ['Cache-Control' => 'public, max-age=3600']);
         }
         if (preg_match('#^/([a-z0-9]+(?:-[a-z0-9]+)*)/([a-z0-9]+(?:-[a-z0-9]+)*)/transcript\.(txt|vtt)$#', $path, $match) === 1) {
             $episode = $this->repository->episode($match[1], $match[2]);
@@ -89,41 +102,34 @@ final class Application
             if ($transcript === null || $transcript['extension'] !== $match[3]) {
                 throw new NotFoundException('Transcript not found.');
             }
-            $this->conditional($transcript['content'], $transcript['type'] . '; charset=utf-8');
-            return;
+            return $this->conditional($transcript['content'], $transcript['type'] . '; charset=utf-8');
         }
         if (preg_match('#^/pages/([a-z0-9]+(?:-[a-z0-9]+)*)/?$#', $path, $match) === 1) {
-            $this->html('page', ['page' => $this->repository->page($match[1])]);
-            return;
+            return $this->html('page', ['page' => $this->repository->page($match[1])]);
         }
         if (preg_match('#^/([a-z0-9]+(?:-[a-z0-9]+)*)/feed\.([a-z0-9]+)\.xml$#', $path, $match) === 1) {
-            $this->feed($match[1], 'xml', $match[2]);
-            return;
+            return $this->feed($match[1], 'xml', $match[2]);
         }
         if (preg_match('#^/([a-z0-9]+(?:-[a-z0-9]+)*)/feed\.(xml|atom|json)$#', $path, $match) === 1) {
-            $this->feed($match[1], $match[2]);
-            return;
+            return $this->feed($match[1], $match[2]);
         }
         if (preg_match('#^/([a-z0-9]+(?:-[a-z0-9]+)*)/([a-z0-9]+(?:-[a-z0-9]+)*)/chapters\.json$#', $path, $match) === 1) {
             $episode = $this->repository->episode($match[1], $match[2]);
-            $this->conditional($this->feeds->chapters($episode), 'application/json+chapters; charset=utf-8');
-            return;
+            return $this->conditional($this->feeds->chapters($episode), 'application/json+chapters; charset=utf-8');
         }
         if (preg_match('#^/([a-z0-9]+(?:-[a-z0-9]+)*)/([a-z0-9]+(?:-[a-z0-9]+)*)/?$#', $path, $match) === 1) {
             $series = $this->repository->seriesBySlug($match[1]);
-            $this->html('episode', ['series' => $series, ...$this->repository->episodeWithNeighbors($match[1], $match[2])]);
-            return;
+            return $this->html('episode', ['series' => $series, ...$this->repository->episodeWithNeighbors($match[1], $match[2])]);
         }
         if (preg_match('#^/([a-z0-9]+(?:-[a-z0-9]+)*)/?$#', $path, $match) === 1) {
             $series = $this->repository->seriesBySlug($match[1]);
-            $this->html('series', ['series' => $series, 'episodes' => $this->repository->episodes($match[1])]);
-            return;
+            return $this->html('series', ['series' => $series, 'episodes' => $this->repository->episodes($match[1])]);
         }
         throw new NotFoundException('Route not found.');
     }
 
     /** Builds and conditionally serves one series feed in the requested format. */
-    private function feed(string $slug, string $syndicationFormat, ?string $mediaFormat = null): void
+    private function feed(string $slug, string $syndicationFormat, ?string $mediaFormat = null): Response
     {
         $series = $this->repository->seriesBySlug($slug);
         $episodes = $this->repository->episodes($slug);
@@ -136,7 +142,7 @@ final class Application
             'atom' => [$this->feeds->atom($series, $episodes, $baseUrl, $this->repository), 'application/atom+xml; charset=utf-8'],
             'json' => [$this->feeds->json($series, $episodes, $baseUrl, $this->repository), 'application/feed+json; charset=utf-8'],
         };
-        $this->conditional($body, $type);
+        return $this->conditional($body, $type);
     }
 
     /**
@@ -144,7 +150,7 @@ final class Application
      *
      * @param array<string, mixed> $data Variables exposed to both templates.
      */
-    private function html(string $template, array $data, int $status = 200): void
+    private function html(string $template, array $data, int $status = 200): Response
     {
         $data['config'] = $this->config;
         $data['baseUrl'] = $this->baseUrl();
@@ -188,18 +194,18 @@ final class Application
                 ob_end_clean();
             }
         }
-        $this->send($body, 'text/html; charset=utf-8', $status, [
+        return $this->send($body, 'text/html; charset=utf-8', $status, [
             'Vary' => 'Accept-Language',
             'Content-Security-Policy' => "default-src 'self'; script-src 'self'; img-src 'self' https: data:; media-src 'self' https:; style-src 'self'; base-uri 'self'; frame-ancestors 'self'",
         ]);
     }
 
     /** Uses representation hashes: file mtimes cannot track deletions or scheduled publication. */
-    private function conditional(string $body, string $type): void
+    private function conditional(string $body, string $type): Response
     {
         $etag = '"' . hash('sha256', $body) . '"';
         $notModified = false;
-        $condition = trim($_SERVER['HTTP_IF_NONE_MATCH'] ?? '');
+        $condition = $this->building ? '' : trim($_SERVER['HTTP_IF_NONE_MATCH'] ?? '');
         // If-Modified-Since is deliberately ignored because no reliable date is available.
         if ($condition === '*') {
             $notModified = true;
@@ -215,7 +221,7 @@ final class Application
             'ETag' => $etag,
             'Cache-Control' => 'public, max-age=300',
         ];
-        $this->send($notModified ? '' : $body, $type, $notModified ? 304 : 200, $headers);
+        return $this->send($notModified ? '' : $body, $type, $notModified ? 304 : 200, $headers);
     }
 
     /**
@@ -223,18 +229,14 @@ final class Application
      *
      * @param array<string, string> $headers Additional response headers.
      */
-    private function send(string $body, string $type, int $status = 200, array $headers = []): void
+    private function send(string $body, string $type, int $status = 200, array $headers = []): Response
     {
-        http_response_code($status);
-        header('Content-Type: ' . $type);
-        header('X-Content-Type-Options: nosniff');
-        header('Referrer-Policy: strict-origin-when-cross-origin');
-        foreach ($headers as $name => $value) {
-            header($name . ': ' . $value);
-        }
-        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'HEAD' && $status !== 304) {
-            echo $body;
-        }
+        return new Response($body, $status, [
+            'Content-Type' => $type,
+            'X-Content-Type-Options' => 'nosniff',
+            'Referrer-Policy' => 'strict-origin-when-cross-origin',
+            ...$headers,
+        ]);
     }
 
     /** Returns the URL-decoded request path relative to the installation directory. */

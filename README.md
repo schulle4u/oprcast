@@ -13,6 +13,7 @@ OPRCast is a minimal, flatfile podcast publishing CMS for PHP webspaces.
 - Display podcast transcripts and jump directly to specific chapters.
 - Add static pages with additional content for your podcasts, such as ways to get in touch.
 - A command-line tool for validating podcasts and creating new episode files.
+- An optional command-line export of pages and feeds for static hosting.
 
 ## Requirements
 
@@ -36,6 +37,36 @@ php -S localhost:8000 router.php
 ```
 
 Open `http://localhost:8000` to access the site on your computer. 
+
+## Optional static hosting
+
+Dynamic PHP delivery remains the default and recommended mode. No build is needed for normal operation; published content and scheduled episodes become available on requests as before.
+
+For sites updated infrequently, or when PHP should not be publicly accessible, an optional full export is available:
+
+```sh
+php bin/oprcast build public/
+```
+
+Set `base_url` in `system/config/site.php` (or `OPRCAST_BASE_URL`) to the final public HTTP(S) URL first, including any installation subdirectory. The build cannot infer the public address from a browser request. The output directory is relative to the current working directory.
+
+The command validates content and renders the homepage, series and published episode pages, standalone pages (including `/pages/home/`), publisher RSS, all series feed formats and RSS media variants, chapter JSON, and original transcript downloads. CSS and player JavaScript are included. HTML routes become directories containing `index.html`, preserving their existing URLs. Drafts and future episodes are excluded. PHP application files and the content tree are never copied.
+
+Audio and artwork must already be publicly available at their generated URLs. To keep local media in the output directory without copying them on every build, configure:
+
+```php
+'content_path' => dirname(__DIR__, 2) . '/public/content',
+```
+
+Move your existing content there once. Local media URLs continue to use `/content/{series}/…`, independently of the filesystem setting. Alternatively, keep media on a CDN or use absolute media URLs. Files referenced directly from Markdown must also be deployed at the URLs used in that Markdown.
+
+Serve **only `public/`** as the web root, leaving `system/`, `bin/` and other application files outside it. PHP is required on the build machine, but not on the static web server. The export includes an Apache 2.4 `.htaccess` using `index.html`, content types, security headers and a short feed cache lifetime. It denies Markdown, PHP and hidden files; `mod_rewrite` also blocks hidden directories. Enable the corresponding override permissions. For other servers or object storage, configure equivalent directory indexes, MIME types, headers and access restrictions. In particular, `public/content` contains Markdown source files as well as media: these sources must be blocked or excluded when deploying. Media belonging to drafts remain accessible by direct URL when placed in public storage.
+
+Builds use the configured CMS language for all HTML; browser language negotiation remains a dynamic-mode feature. Each build has one publication cutoff. Scheduled episodes appear only after a new build at or after their publication date. Rebuild after edits, deletions, language changes or theme updates, manually or through a scheduler.
+
+Repeated builds track generated files in `.oprcast-build.json`, removing obsolete output while preserving content and other unmanaged files. Keep this manifest and the build lock private and retain them on the build machine. A build refuses to overwrite unmanaged files or manually modified exports, including an existing custom `.htaccess`; move conflicting files aside or restore the previous generated version first. Symbolic links in output paths and destinations overlapping application sources or inside the content directory are rejected.
+
+All representations are staged before existing output is changed. Publication uses file renames and rolls back on errors. The switch is per file, so concurrent visitors can briefly see a mixture of build versions. For a fully atomic deployment, build into a separate directory and switch releases using your hosting platform. Builds always regenerate the complete site; no incremental build or automatic background rebuild is required by the dynamic application.
 
 ## Content
 
@@ -188,6 +219,7 @@ Language files are PHP arrays containing simple string key-value pairs. In addit
 ```sh
 php bin/oprcast validate
 php tests/run.php
+php tests/static.php
 node tests/player.mjs
 ```
 

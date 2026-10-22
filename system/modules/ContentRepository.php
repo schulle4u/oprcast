@@ -16,6 +16,21 @@ use FilesystemIterator;
 final class ContentRepository
 {
     private readonly ?string $cdnUrl;
+    private ?DateTimeImmutable $publicationTime = null;
+
+    /** Gives a static build one publication cutoff for all of its representations. */
+    public function atTime(DateTimeImmutable $time): self
+    {
+        $repository = clone $this;
+        $repository->publicationTime = $time;
+        return $repository;
+    }
+
+    /** Filesystem source root, used to protect it from build output. */
+    public function contentRoot(): string
+    {
+        return $this->root;
+    }
 
     /**
      * @param array<string, array{extension: string, mime_type: string}> $mediaFormats
@@ -97,7 +112,7 @@ final class ContentRepository
             if ($episode === null) {
                 continue;
             }
-            if ($includeFuture || $episode['date'] <= new DateTimeImmutable('now')) {
+            if ($includeFuture || $episode['date'] <= ($this->publicationTime ?? new DateTimeImmutable('now'))) {
                 $episodes[] = $episode;
             }
         }
