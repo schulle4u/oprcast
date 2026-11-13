@@ -138,6 +138,8 @@ For the MP3 format this produces `https://cdn.podcast.org/mypodcast/first-episod
 
 Static pages such as an imprint can be placed in `content/pages/imprint.md`; their front matter only needs a `title`.
 
+To control navigation order, prefix filenames with a number and a hyphen, for example `1-team.md`, `2-kontact.md`, and `10-imprint.md`. Numbered pages appear first in ascending numeric order; unnumbered pages follow alphabetically by filename. Equal numbers are ordered by filename. The prefix is only used for sorting: `1-team.md` is published at `/pages/team/`, including in static builds, and its default title is `Team`. Keep page slugs unique after removing the prefix. A numbered `home.md` (for example `0-home.md`) still supplies the homepage introduction and stays out of navigation.
+
 To customize the introduction above the homepage's series list, create `content/pages/home.md`:
 
 ```markdown

@@ -54,7 +54,8 @@ try {
     file_put_contents($content . '/cast/2025-01-02-draft.md', "---\ntitle: Draft\ndraft: true\nguid: draft-guid\n---\nHidden.");
     file_put_contents($content . '/cast/2999-01-01-future.md', "---\ntitle: Future\ndate: 2999-01-01\nguid: future-guid\naudio: https://media.example.org/future\naudio_length_mp3: 123\naudio_length_m4a: 456\nduration: 01:00\nepisode_type: full\n---\nScheduled.");
     file_put_contents($content . '/pages/home.md', "---\ntitle: Welcome\n---\nIntro.");
-    file_put_contents($content . '/pages/about.md', "---\ntitle: About\n---\nAbout us.");
+    file_put_contents($content . '/pages/2-about.md', "---\ntitle: About\n---\nAbout us.");
+    file_put_contents($content . '/pages/1-team.md', "---\ntitle: Team\n---\nOur team.");
     $config = array_replace(require dirname(__DIR__) . '/system/config/site.php', [
         'base_url' => 'https://example.test/podcasts', 'language' => 'de', 'content_path' => $content,
     ]);
@@ -70,7 +71,7 @@ try {
     $_SERVER['HTTP_IF_NONE_MATCH'] = '*';
     $builder->build($application, $public);
     $paths = ['index.html', 'feed.xml', 'assets/theme.css', 'assets/player.js', 'pages/home/index.html',
-        'pages/about/index.html', 'cast/index.html', 'cast/feed.xml', 'cast/feed.mp3.xml', 'cast/feed.m4a.xml',
+        'pages/about/index.html', 'pages/team/index.html', 'cast/index.html', 'cast/feed.xml', 'cast/feed.mp3.xml', 'cast/feed.m4a.xml',
         'cast/feed.atom', 'cast/feed.json', 'cast/first/index.html', 'cast/first/chapters.json', 'cast/first/transcript.vtt'];
     foreach ($paths as $path) {
         $assert(is_file($public . '/' . $path), 'Missing export: ' . $path);
@@ -80,6 +81,8 @@ try {
     }
     $assert(file_get_contents($public . '/cast/first/transcript.vtt') === $transcript, 'Transcript bytes changed.');
     $html = file_get_contents($public . '/cast/first/index.html');
+    $assert(!is_dir($public . '/pages/2-about') && !is_dir($public . '/pages/1-team'), 'Numeric page prefixes leaked into export paths.');
+    $assert(strpos($html, '/pages/team/') < strpos($html, '/pages/about/'), 'Exported navigation ignores numeric page order.');
     $languageCode = (new Localization('de', dirname(__DIR__) . '/system/lang'))->languageCode();
     $assert(str_contains($html, '<html lang="' . $languageCode . '">') && str_contains($html, 'https://example.test/podcasts/content/cast/first.mp3'), 'Language or subdirectory media URL is wrong.');
     $assert(!is_dir($public . '/cast/draft') && !is_dir($public . '/cast/future'), 'Unpublished episode exported.');
@@ -103,10 +106,10 @@ try {
     // Unmanaged files, local media and source Markdown survive repeated builds and pruning.
     file_put_contents($public . '/robots.txt', 'Custom');
     file_put_contents($public . '/cast/first/extra.txt', 'Keep');
-    file_put_contents($content . '/pages/about.md', '---' . "\nbroken front matter\n---");
+    file_put_contents($content . '/pages/2-about.md', '---' . "\nbroken front matter\n---");
     $reject(fn () => $builder->build($application, $public), 'Invalid content accepted.');
     $assert(file_get_contents($public . '/feed.xml') === $before, 'Failed validation modified published files.');
-    unlink($content . '/pages/about.md');
+    unlink($content . '/pages/2-about.md');
     unlink($episodeFile);
     $builder->build($application, $public);
     foreach (['cast/first/index.html', 'cast/first/chapters.json', 'cast/first/transcript.vtt', 'pages/about/index.html'] as $stale) {

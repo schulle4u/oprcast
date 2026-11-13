@@ -172,7 +172,7 @@ final class ContentRepository
     }
 
     /**
-     * Loads all standalone pages from the reserved `pages` directory.
+     * Loads standalone pages in numeric filename order, then unnumbered pages.
      *
      * @return list<array<string, mixed>>
      */
@@ -183,8 +183,8 @@ final class ContentRepository
             return [];
         }
         $pages = [];
-        foreach (glob($directory . '/*.md') ?: [] as $file) {
-            $slug = pathinfo($file, PATHINFO_FILENAME);
+        foreach ($this->pageFiles() as $file) {
+            $slug = $this->pageSlug($file);
             if (!$this->validSlug($slug)) {
                 continue;
             }
@@ -217,7 +217,7 @@ final class ContentRepository
      */
     public function homePage(): ?array
     {
-        return is_file($this->root . '/pages/home.md') ? $this->page('home') : null;
+        return $this->pageFile('home') !== null ? $this->page('home') : null;
     }
 
     /**
@@ -227,11 +227,11 @@ final class ContentRepository
      */
     public function page(string $slug): array
     {
-        if (!$this->validSlug($slug) || !is_file($this->root . '/pages/' . $slug . '.md')) {
+        $file = $this->validSlug($slug) ? $this->pageFile($slug) : null;
+        if ($file === null) {
             throw new NotFoundException('Page not found.');
         }
         // Keep unrelated broken pages from preventing access to a valid page.
-        $file = $this->root . '/pages/' . $slug . '.md';
         $parsed = $this->read($file);
         return array_replace($parsed['meta'], [
             'slug' => $slug,
@@ -241,6 +241,44 @@ final class ContentRepository
             'source' => $file,
             'modified' => filemtime($file) ?: time(),
         ]);
+    }
+
+    /** @return list<string> */
+    private function pageFiles(): array
+    {
+        $files = glob($this->root . '/pages/*.md') ?: [];
+        usort($files, static function (string $a, string $b): int {
+            $aNumbered = preg_match('/^([0-9]+)-/', basename($a), $aMatch) === 1;
+            $bNumbered = preg_match('/^([0-9]+)-/', basename($b), $bMatch) === 1;
+            if ($aNumbered !== $bNumbered) {
+                return $aNumbered ? -1 : 1;
+            }
+            if ($aNumbered) {
+                $order = (int) $aMatch[1] <=> (int) $bMatch[1];
+                if ($order !== 0) {
+                    return $order;
+                }
+            }
+            return strcmp(basename($a), basename($b));
+        });
+        return $files;
+    }
+
+    /** Removes an optional navigation position from the public page slug. */
+    private function pageSlug(string $file): string
+    {
+        return preg_replace('/^[0-9]+-/', '', pathinfo($file, PATHINFO_FILENAME));
+    }
+
+    /** Resolves filenames without parsing unrelated, potentially broken pages. */
+    private function pageFile(string $slug): ?string
+    {
+        foreach ($this->pageFiles() as $file) {
+            if ($this->pageSlug($file) === $slug) {
+                return $file;
+            }
+        }
+        return null;
     }
 
     /**

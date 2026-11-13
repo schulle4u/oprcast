@@ -219,6 +219,8 @@ Alle Feeds sind auf `feed_limit` Einträge begrenzt (standardmäßig `100`), neu
 
 Die Einleitung oberhalb der Serienliste lässt sich mit `content/pages/home.md` gestalten. Das Front Matter kann `title` und `description` enthalten; der Markdown-Inhalt erscheint unter dem Titel. Die Datei erscheint nicht zusätzlich in der Navigation. Ohne Datei wird der konfigurierte Website-Titel angezeigt.
 
+Dateinamen statischer Seiten können mit einer Nummer für die Navigationsreihenfolge beginnen, beispielsweise `1-team.md` oder `2-kontact.md`. Nummerierte Seiten erscheinen zuerst in aufsteigender numerischer Reihenfolge, danach folgen unnummerierte Seiten alphabetisch nach Dateiname. Bei gleicher Nummer entscheidet der Dateiname. Das Präfix wird aus dem URL-Slug und dem automatisch abgeleiteten Titel entfernt (`1-team.md` wird zu `/pages/team/` und `Team`). Nach dem Entfernen der Präfixe müssen die Slugs eindeutig bleiben. Nummerierte Startseitendateien wie `0-home.md` funktionieren wie `home.md` und bleiben aus der Navigation ausgeschlossen.
+
 Die HTML-Metabeschreibung der Startseite und die Kanalbeschreibung des Meta-RSS stammen aus `description` in `content/pages/home.md`, ersatzweise aus dessen Markdown-Inhalt als Klartext. Die automatisch erzeugte HTML-Vorschau wird wie oben beschrieben gekürzt; die Feed-Beschreibung bleibt vollständig. Ohne Datei bleiben diese Beschreibungen leer. Andere HTML-Seiten verwenden ihre eigenen Inhalte für die Metabeschreibung. Der Inhalt von `home.md` bleibt unabhängig von der Browsersprache.
 
 ## Globale Konfiguration und automatisch erzeugte Angaben

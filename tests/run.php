@@ -669,6 +669,34 @@ if (class_exists(XMLWriter::class)) {
     $test($status === 500 && substr_count($body, '<!doctype html>') === 1, 'Invalid home content returns a complete error page.');
     $test((new Validator())->validate($repository) !== [], 'Home content is included in validation.');
     unlink($fixture . '/pages/home.md');
+    $orderedPages = [
+        '10-imprint.md' => 'Imprint',
+        '2-kontact.md' => 'Kontact',
+        '01-team.md' => 'Team',
+        '2-faq.md' => 'Faq',
+        'zebra.md' => 'Zebra',
+        'about.md' => 'About',
+        '0-home.md' => 'Home',
+    ];
+    foreach ($orderedPages as $filename => $title) {
+        file_put_contents($fixture . '/pages/' . $filename, 'Body for ' . $title);
+    }
+    file_put_contents($fixture . '/pages/3--invalid.md', 'Invalid slug');
+    $test(array_column($repository->pages(), 'slug') === ['home', 'team', 'faq', 'kontact', 'imprint', 'about', 'zebra'], 'Pages sort numerically before unnumbered filenames, with deterministic ties and invalid slugs excluded.');
+    $test($repository->page('team')['title'] === 'Team', 'Default page titles omit numeric prefixes and leading zeroes.');
+    $test(str_ends_with($repository->page('team')['source'], '/01-team.md'), 'Page lookup preserves the numbered source filename.');
+    [$status, $body] = $request('/');
+    $test($status === 200 && str_contains($body, 'Body for Home') && !str_contains($body, '/pages/home/'), 'Numbered home content renders on the homepage and stays out of navigation.');
+    preg_match_all('#href="https://example.test/pages/([^/]+)/"#', $body, $navigationMatches);
+    $test($navigationMatches[1] === ['team', 'faq', 'kontact', 'imprint', 'about', 'zebra'], 'Navigation uses numeric order and clean page URLs.');
+    [$status, $body] = $request('/pages/team/');
+    $test($status === 200 && str_contains($body, 'Body for Team') && $metaValue($body, 'og:url') === 'https://example.test/pages/team/', 'Numbered pages render at clean canonical URLs.');
+    [$status] = $request('/pages/01-team/');
+    $test($status === 404, 'Numeric filename prefixes are not exposed as page routes.');
+    foreach (array_keys($orderedPages) as $filename) {
+        unlink($fixture . '/pages/' . $filename);
+    }
+    unlink($fixture . '/pages/3--invalid.md');
     file_put_contents($fixture . '/pages/broken.md', "---\ntitle: Broken\nmalformed front matter\n---\nBroken page");
     file_put_contents($fixture . '/pages/valid.md', "---\ntitle: Valid page\n---\nValid body\n\n![Cover](cover.jpg)\n\n| Name |\n| --- |\n| **Static page** |");
     [$status, $body] = $request('/');

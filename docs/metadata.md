@@ -219,6 +219,8 @@ All feeds are limited to `feed_limit` entries (default `100`), newest shows firs
 
 Customize the introduction above the series list with `content/pages/home.md`. Its front matter can contain `title` and `description`; the Markdown body appears below the title. The file is excluded from navigation. Without the file, the configured website title is displayed.
 
+Static page filenames may start with a numeric navigation position, such as `1-team.md` or `2-kontact.md`. Numbered pages come first in ascending numeric order, followed by unnumbered pages alphabetically by filename; equal positions use filename order. The prefix is removed from the URL slug and default title (`1-team.md` becomes `/pages/team/` and `Team`). Slugs must remain unique after removing prefixes. Numbered homepage files such as `0-home.md` work like `home.md` and remain excluded from navigation.
+
 The homepage's HTML meta description and meta RSS channel description come from `description` in `content/pages/home.md`, falling back to its Markdown body as plain text. Automatic HTML previews are shortened as described above; the feed description remains complete. Without the file, these descriptions are empty. Other HTML pages use their own content for meta descriptions. Homepage content remains independent of the browser language.
 
 ## Global configuration and generated values
