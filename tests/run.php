@@ -215,6 +215,29 @@ $test($episodeEnclosures[0]['url'] === 'https://example.test/content/test-cast/e
 $test($episodeEnclosures[0]['length'] === 13, 'Repository reads local media lengths.');
 $test($repository->defaultFormat($series) === 'mp3', 'Repository resolves the default media format.');
 
+$cuesheet = new \Oprcast\Cuesheet();
+$cue = $cuesheet->render($episodes[0], $episodeEnclosures[0]['url']);
+$test(str_contains($cue, 'FILE "episode.mp3" MP3') && str_contains($cue, "  TRACK 02 AUDIO\r\n    TITLE \"Topic\"\r\n    INDEX 01 00:30:00"), 'Cuesheet references the local MP3 and chapter tracks.');
+$longEpisode = array_replace($episodes[0], ['title' => "An \"episode\"\nTITLE injected", 'chapters' => [
+    ['startTime' => 0, 'title' => 'Grüße & Intro'], ['startTime' => 3723, 'title' => "A \"quote\"\r\nFILE injected"],
+]]);
+$longCue = $cuesheet->render($longEpisode, 'https://cdn.example.test/path/first%20episode.mp3?token=secret');
+$test(str_contains($longCue, 'FILE "first episode.mp3" MP3') && !str_contains($longCue, 'secret') && str_contains($longCue, 'INDEX 01 62:03:00'), 'Cuesheets decode CDN filenames, omit URLs and convert hours into total minutes.');
+$test(str_contains($longCue, 'Grüße & Intro') && str_contains($longCue, "TITLE \"A 'quote' FILE injected\"") && substr_count($longCue, "\r\n") === 8, 'Cuesheets preserve Unicode and contain quoted titles on single lines.');
+$test(\Oprcast\Cuesheet::available(array_replace($series, ['default_format' => 'm4a']), $episodes[0]), 'Cuesheets use MP3 independently of the default format.');
+foreach ([[], array_fill(0, 100, ['startTime' => 0, 'title' => 'Track'])] as $chapterList) {
+    $test(!\Oprcast\Cuesheet::available($series, array_replace($episodes[0], ['chapters' => $chapterList])), 'Cuesheets require between one and 99 chapters.');
+}
+$test(!\Oprcast\Cuesheet::available(array_replace($series, ['formats' => ['m4a']]), $episodes[0]), 'Cuesheets require an offered MP3 format.');
+foreach (['bad%22name.mp3', 'bad%0Aname.mp3', 'bad%5Cname.mp3', 'bad%2Fname.mp3'] as $filename) {
+    try {
+        $cuesheet->render($episodes[0], 'https://example.test/' . $filename);
+        $test(false, 'Cuesheets must reject unrepresentable audio filenames.');
+    } catch (\Oprcast\NotFoundException) {
+        $test(true, 'Cuesheets reject unrepresentable audio filenames.');
+    }
+}
+
 $cdnRepository = new ContentRepository($fixture, $frontMatter, $markdown, $mediaFormats, 'https://cdn.podcast.org/');
 $cdnEpisode = $episodes[0];
 $cdnEpisode['audio'] = 'mypodcast/first episode';
@@ -349,6 +372,13 @@ if (class_exists(XMLWriter::class)) {
     $test(str_contains($episodePage, 'January 1, 2025 at 10:00 am'), 'Application displays localized episode dates and times.');
     $test(str_contains($episodePage, 'Your browser does not support the audio player.'), 'Application renders localized layout strings.');
     $test(substr_count($episodePage, '<source src=') === 2, 'Episode pages offer every media format to the browser.');
+    $test(str_contains($episodePage, '/test-cast/first/chapters.cue" download="first.cue">Download cuesheet (MP3)</a>'), 'Episode pages offer a localized cuesheet download.');
+    $cueResponse = $application->render('/test-cast/first/chapters.cue');
+    $test($cueResponse->status === 200 && $cueResponse->body === $cue && $cueResponse->headers['Content-Type'] === 'text/plain; charset=utf-8' && $cueResponse->headers['Content-Disposition'] === 'attachment; filename="first.cue"', 'Cuesheet route delivers a named UTF-8 download.');
+    $_SERVER['HTTP_IF_NONE_MATCH'] = $cueResponse->headers['ETag'];
+    $cachedCue = $application->render('/test-cast/first/chapters.cue');
+    $test($cachedCue->status === 304 && $cachedCue->body === '', 'Cuesheet route supports conditional requests.');
+    unset($_SERVER['HTTP_IF_NONE_MATCH']);
     $test(str_contains($episodePage, '>MP3</a>') && str_contains($episodePage, '>M4A</a>'), 'Episode pages link every format for download.');
 
     $_SERVER['REQUEST_URI'] = '/test-cast/feed.xml';
@@ -504,6 +534,22 @@ if (class_exists(XMLWriter::class)) {
     $test($status === 200 && $body === '', 'HEAD does not emit a feed body.');
 
     $episodeFile = $fixture . '/test-cast/2025-01-01-first.md';
+    [$status, $body] = $request('/test-cast/first/chapters.cue', [], 'HEAD');
+    $test($status === 200 && $body === '', 'HEAD does not emit a cuesheet body.');
+    file_put_contents($episodeFile, str_replace('## Kapitel', '## Other', $cdnFixtureSource));
+    [$status] = $request('/test-cast/first/chapters.cue');
+    $test($status === 404, 'Episodes without chapters have no cuesheet route.');
+    [$status, $body] = $request('/test-cast/first/');
+    $test(!str_contains($body, 'chapters.cue'), 'Episodes without chapters hide the cuesheet link.');
+    file_put_contents($episodeFile, $cdnFixtureSource);
+    $seriesFile = $fixture . '/test-cast/index.md';
+    $seriesSource = file_get_contents($seriesFile);
+    file_put_contents($seriesFile, str_replace(['  - mp3' . "\n", 'default_format: mp3'], ['', 'default_format: m4a'], $seriesSource));
+    [$status] = $request('/test-cast/first/chapters.cue');
+    $test($status === 404, 'Series without MP3 have no cuesheet route.');
+    [$status, $body] = $request('/test-cast/first/');
+    $test(!str_contains($body, 'chapters.cue'), 'Series without MP3 hide the cuesheet link.');
+    file_put_contents($seriesFile, $seriesSource);
     // Draft creation, identity safety and publication boundaries.
     $creator = new \Oprcast\EpisodeCreator();
     $draftFile = $creator->create($repository, 'test-cast', 'new-topic');
@@ -512,7 +558,7 @@ if (class_exists(XMLWriter::class)) {
     $test($draftMeta['draft'] === true && preg_match('/^urn:uuid:[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/', $draftMeta['guid']) === 1, 'Creator generates a draft and a UUID v4 identity.');
     $test(count($repository->episodes('test-cast', true)) === 1 && count($repository->episodes('test-cast', true, true)) === 2, 'Including scheduled episodes never implicitly includes drafts.');
     $test((new Validator())->validate($repository) === [], 'New drafts validate without media or duration.');
-    foreach (['/test-cast/new-topic/', '/test-cast/new-topic/chapters.json', '/test-cast/new-topic/transcript.txt'] as $path) {
+    foreach (['/test-cast/new-topic/', '/test-cast/new-topic/chapters.json', '/test-cast/new-topic/chapters.cue', '/test-cast/new-topic/transcript.txt'] as $path) {
         [$status] = $request($path);
         $test($status === 404, 'Draft episode and companion routes are unpublished.');
     }
@@ -614,6 +660,8 @@ if (class_exists(XMLWriter::class)) {
     [$status, $body] = $request('/test-cast/feed.xml');
     $unpublishedEtag = '"' . hash('sha256', $body) . '"';
     $test(!str_contains($body, '<item>'), 'Future episodes remain unpublished.');
+    [$status] = $request('/test-cast/first/chapters.cue');
+    $test($status === 404, 'Future episodes do not expose a cuesheet.');
     file_put_contents($episodeFile, $cdnFixtureSource);
     touch($episodeFile, $mtime);
     [$status, $body] = $request('/test-cast/feed.xml', [

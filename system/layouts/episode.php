@@ -36,6 +36,9 @@
     <p class="audio-downloads"><?php echo htmlspecialchars($localization->get('download_audio'), ENT_QUOTES, 'UTF-8'); ?>:
 <?php foreach ($enclosures as $index => $enclosure): ?><?php if ($index > 0): ?> · <?php endif; ?><a href="<?php echo htmlspecialchars($enclosure['url'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars(strtoupper($enclosure['format']), ENT_QUOTES, 'UTF-8'); ?></a><?php endforeach; ?>
     </p>
+<?php if (\Oprcast\Cuesheet::available($series, $episode)): ?>
+    <p><a href="<?php echo htmlspecialchars($baseUrl . '/' . $series['slug'] . '/' . $episode['slug'] . '/chapters.cue', ENT_QUOTES, 'UTF-8'); ?>" download="<?php echo htmlspecialchars($episode['slug'] . '.cue', ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($localization->get('download_cuesheet'), ENT_QUOTES, 'UTF-8'); ?> (MP3)</a></p>
+<?php endif; ?>
     <div class="prose" data-show-notes><?php echo $markdown->renderEpisode($episode['body']); ?></div>
 <?php if ($transcript = $repository->transcript($episode, $baseUrl)): ?>
     <section aria-labelledby="transcript-title" class="transcript prose">

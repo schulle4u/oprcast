@@ -185,6 +185,8 @@ Existing Markdown chapter timestamps become links on episode pages, for example 
 
 Episode pages also provide links to the immediately previous and next published episode in the same series below the show notes and chapters. Links follow publication dates, as in the series index; drafts and scheduled episodes are excluded. At either end only the available direction is shown, and a single-episode series has no navigation block. This works without JavaScript.
 
+Episodes with 1–99 chapters and MP3 enabled also offer **Download cuesheet (MP3)** at `/{series}/{episode}/chapters.cue`, including in static exports. Save it beside the downloaded MP3 and keep the MP3's original filename. It uses the existing chapters and always selects MP3, independently of `default_format`. Without chapters or MP3, or with more than 99 chapters, no CUE download is offered. Chapter JSON and RSS links remain unchanged. See [chapter metadata](docs/metadata.md#markdown-content-and-chapters) for details.
+
 ## Episode artwork and link previews
 
 Set an optional cover in an episode's front matter:
@@ -239,5 +241,6 @@ Node.js is only needed to run the optional player tests, not to serve OPRCast.
 - `/{series}/feed.atom` – Atom feed
 - `/{series}/feed.json` – JSON Feed
 - `/{series}/{episode}/chapters.json` – Podcasting 2.0 chapters
+- `/{series}/{episode}/chapters.cue` – downloadable MP3 cuesheet for episodes with 1–99 chapters and an enabled MP3 format
 - `/{series}/{episode}/transcript.txt` or `transcript.vtt` – the configured transcript's original file
 - `/pages/{slug}/` – static page

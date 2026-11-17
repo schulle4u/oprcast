@@ -29,6 +29,7 @@ return [
     'audio_caption' => 'Audio',
     'audio_fallback' => 'Your browser does not support the audio player.',
     'download_audio' => 'Download audio',
+    'download_cuesheet' => 'Download cuesheet',
     'player_controls' => 'Additional playback controls',
     'player_back' => 'Back 15 seconds',
     'player_forward' => 'Forward 30 seconds',

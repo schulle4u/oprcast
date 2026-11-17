@@ -72,7 +72,7 @@ try {
     $builder->build($application, $public);
     $paths = ['index.html', 'feed.xml', 'assets/theme.css', 'assets/player.js', 'pages/home/index.html',
         'pages/about/index.html', 'pages/team/index.html', 'cast/index.html', 'cast/feed.xml', 'cast/feed.mp3.xml', 'cast/feed.m4a.xml',
-        'cast/feed.atom', 'cast/feed.json', 'cast/first/index.html', 'cast/first/chapters.json', 'cast/first/transcript.vtt'];
+        'cast/feed.atom', 'cast/feed.json', 'cast/first/index.html', 'cast/first/chapters.json', 'cast/first/chapters.cue', 'cast/first/transcript.vtt'];
     foreach ($paths as $path) {
         $assert(is_file($public . '/' . $path), 'Missing export: ' . $path);
         $route = '/' . preg_replace('#index\.html$#', '', $path);
@@ -81,6 +81,9 @@ try {
     }
     $assert(file_get_contents($public . '/cast/first/transcript.vtt') === $transcript, 'Transcript bytes changed.');
     $html = file_get_contents($public . '/cast/first/index.html');
+    $assert(str_contains($html, '/podcasts/cast/first/chapters.cue" download="first.cue">Cuesheet herunterladen (MP3)</a>'), 'Static cuesheet link ignores the base path or configured language.');
+    $assert(str_contains(file_get_contents($public . '/cast/first/chapters.cue'), 'FILE "first.mp3" MP3'), 'Static cuesheet has the wrong audio filename.');
+    $assert(str_contains(file_get_contents($public . '/.htaccess'), 'AddType text/plain .cue') && str_contains(file_get_contents($public . '/.htaccess'), 'Header set Content-Disposition "attachment"'), 'Static cuesheet download headers missing.');
     $assert(!is_dir($public . '/pages/2-about') && !is_dir($public . '/pages/1-team'), 'Numeric page prefixes leaked into export paths.');
     $assert(strpos($html, '/pages/team/') < strpos($html, '/pages/about/'), 'Exported navigation ignores numeric page order.');
     $languageCode = (new Localization('de', dirname(__DIR__) . '/system/lang'))->languageCode();
@@ -91,6 +94,11 @@ try {
     $assert(!file_exists($public . '/index.php') && !is_dir($public . '/system'), 'Application sources were copied.');
     $builder->build($application, $public);
     $before = file_get_contents($public . '/feed.xml');
+    file_put_contents($episodeFile, str_replace('## Kapitel', '## Other', $episode));
+    $builder->build($application, $public);
+    $assert(!file_exists($public . '/cast/first/chapters.cue') && !str_contains(file_get_contents($public . '/cast/first/index.html'), 'chapters.cue'), 'Removing chapters leaves a stale cuesheet or download link.');
+    file_put_contents($episodeFile, $episode);
+    $builder->build($application, $public);
     $lock = fopen($public . '/.oprcast-build.lock', 'c');
     flock($lock, LOCK_EX);
     $reject(fn () => $builder->build($application, $public), 'Concurrent build lock ignored.');
@@ -112,7 +120,7 @@ try {
     unlink($content . '/pages/2-about.md');
     unlink($episodeFile);
     $builder->build($application, $public);
-    foreach (['cast/first/index.html', 'cast/first/chapters.json', 'cast/first/transcript.vtt', 'pages/about/index.html'] as $stale) {
+    foreach (['cast/first/index.html', 'cast/first/chapters.json', 'cast/first/chapters.cue', 'cast/first/transcript.vtt', 'pages/about/index.html'] as $stale) {
         $assert(!file_exists($public . '/' . $stale), 'Stale export survived: ' . $stale);
     }
     $assert(file_get_contents($public . '/robots.txt') === 'Custom' && file_get_contents($public . '/cast/first/extra.txt') === 'Keep', 'Unmanaged files removed.');

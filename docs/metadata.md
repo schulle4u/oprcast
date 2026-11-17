@@ -183,6 +183,10 @@ Each entry starts with `-` or `*`, a timestamp, and the title, for example `- 03
 
 Only `startTime` (seconds) and `title` are published at `/{series}/{show}/chapters.json`, with document version `1.2.0`. When chapters exist, RSS links to them through `podcast:chapters`. Without chapters, the chapter route still returns a document with an empty list. Chapter images, chapter URLs, and a front matter field for an external chapter file are not used.
 
+Episodes with 1–99 chapters and `mp3` in the series' `formats` also offer a **Download cuesheet (MP3)** link at `/{series}/{show}/chapters.cue`. The UTF-8 CUE file uses the same chapter titles and timestamps, with each chapter represented as an audio track. It always refers to the MP3 file, even if `default_format` selects another format. Save the CUE file beside the downloaded MP3 and retain the MP3's original filename; CDN and external media URLs are reduced to their decoded filename. Quotes in titles become apostrophes and control characters become spaces. Audio filenames containing quotes, path separators or control characters cannot be exported. CUE indices use total minutes, seconds and frames; second-precision chapter timestamps have frame value `00`.
+
+The CUE route supports HEAD and ETag requests and is included in static exports. Without chapters, with more than 99 chapters, or without MP3, the link is omitted and the route returns 404. Drafts and future episodes remain unpublished. No additional metadata is needed, and the JSON output and RSS chapter links remain unchanged.
+
 ## Transcripts and website chapter links
 
 `transcript: transcripts/first-show.vtt` associates a companion file relative to the episode file. Local UTF-8 `.txt` and `.vtt` files (with a `WEBVTT` header) are supported. Absolute URLs, parent paths and files outside the series directory are rejected. CDN configuration does not apply to transcripts.

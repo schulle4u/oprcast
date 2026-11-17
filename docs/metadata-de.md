@@ -183,6 +183,10 @@ Jeder Eintrag beginnt mit `-` oder `*`, einem Zeitstempel und dem Titel, etwa `-
 
 Ausgegeben werden ausschließlich `startTime` (Sekunden) und `title` unter `/{serie}/{show}/chapters.json`, mit Dokumentversion `1.2.0`. Bei vorhandenen Kapiteln verweist RSS über `podcast:chapters` darauf. Ohne Kapitel liefert die Kapitelroute weiterhin ein Dokument mit leerer Liste. Kapitelbilder, Kapitel-URLs oder ein Front-Matter-Feld für eine externe Kapiteldatei werden nicht ausgewertet.
 
+Episoden mit 1–99 Kapiteln und `mp3` in den `formats` der Serie bieten zusätzlich **Cuesheet herunterladen (MP3)** unter `/{serie}/{show}/chapters.cue` an. Die UTF-8-Datei verwendet dieselben Kapiteltitel und Zeitmarken; jedes Kapitel wird als Audiotrack ausgegeben. Sie verweist immer auf die MP3-Datei, auch wenn `default_format` ein anderes Format auswählt. Die CUE-Datei neben der heruntergeladenen MP3 ablegen und deren ursprünglichen Dateinamen beibehalten. Bei CDN- und externen Medien-URLs wird nur der dekodierte Dateiname verwendet. Anführungszeichen in Titeln werden durch Apostrophe ersetzt, Steuerzeichen durch Leerzeichen. Audiodateinamen mit Anführungszeichen, Pfadtrennzeichen oder Steuerzeichen können nicht exportiert werden. CUE-Zeitmarken bestehen aus Gesamtminuten, Sekunden und Frames; die sekundengenauen Kapitel erhalten den Framewert `00`.
+
+Die CUE-Route unterstützt HEAD und ETag-Anfragen und wird auch statisch exportiert. Ohne Kapitel, bei mehr als 99 Kapiteln oder ohne MP3 entfällt der Link und die Route liefert 404. Entwürfe und zukünftige Episoden bleiben unveröffentlicht. Zusätzliche Metadaten sind nicht erforderlich; JSON-Ausgabe und Kapitelverweise im RSS bleiben unverändert.
+
 ## Transkripte und Kapitel auf der Website
 
 `transcript: transkripte/erste-show.vtt` ordnet eine Begleitdatei relativ zur Episoden-Datei zu. Unterstützt sind lokale UTF-8-Dateien `.txt` und `.vtt` (mit `WEBVTT`-Kopf). Absolute URLs, übergeordnete Pfade und Dateien außerhalb des Serienverzeichnisses sind unzulässig. Die CDN-Einstellung gilt nicht für Transkripte.

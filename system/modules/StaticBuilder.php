@@ -158,6 +158,9 @@ final class StaticBuilder
                 if ($episode['chapters'] !== []) {
                     yield $route . 'chapters.json';
                 }
+                if (Cuesheet::available($series, $episode)) {
+                    yield $route . 'chapters.cue';
+                }
                 if ($transcript = $repository->transcript($episode, '')) {
                     yield $route . 'transcript.' . $transcript['extension'];
                 }
@@ -170,7 +173,7 @@ final class StaticBuilder
         if (str_starts_with($path, 'content/')) {
             return false;
         }
-        return preg_match('#^(?:\.htaccess|index\.html|feed\.xml|assets/(?:theme\.css|player\.js)|pages/[a-z0-9]+(?:-[a-z0-9]+)*/index\.html|[a-z0-9]+(?:-[a-z0-9]+)*/(?:index\.html|feed\.(?:xml|atom|json|[a-z0-9]+\.xml)|[a-z0-9]+(?:-[a-z0-9]+)*/(?:index\.html|chapters\.json|transcript\.(?:txt|vtt))))$#D', $path) === 1;
+        return preg_match('#^(?:\.htaccess|index\.html|feed\.xml|assets/(?:theme\.css|player\.js)|pages/[a-z0-9]+(?:-[a-z0-9]+)*/index\.html|[a-z0-9]+(?:-[a-z0-9]+)*/(?:index\.html|feed\.(?:xml|atom|json|[a-z0-9]+\.xml)|[a-z0-9]+(?:-[a-z0-9]+)*/(?:index\.html|chapters\.(?:json|cue)|transcript\.(?:txt|vtt))))$#D', $path) === 1;
     }
 
     private function within(string $path, string $directory): bool
@@ -285,7 +288,8 @@ AddType application/rss+xml .xml
 AddType application/atom+xml .atom
 AddType application/json .json
 AddType text/vtt .vtt
-AddCharset UTF-8 .html .css .js .xml .atom .json .txt .vtt
+AddType text/plain .cue
+AddCharset UTF-8 .html .css .js .xml .atom .json .txt .vtt .cue
 <Files "feed.json">
     ForceType application/feed+json
 </Files>
@@ -293,11 +297,14 @@ AddCharset UTF-8 .html .css .js .xml .atom .json .txt .vtt
     ForceType application/json+chapters
 </Files>
 <IfModule mod_headers.c>
+    <Files "chapters.cue">
+        Header set Content-Disposition "attachment"
+    </Files>
     Header always set X-Content-Type-Options "nosniff"
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
     Header always set X-Frame-Options "SAMEORIGIN"
     Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; img-src 'self' https: data:; media-src 'self' https:; style-src 'self'; base-uri 'self'; frame-ancestors 'self'"
-    <FilesMatch "\.(?:xml|atom|json)$">
+    <FilesMatch "\.(?:xml|atom|json|cue)$">
         Header set Cache-Control "public, max-age=300"
     </FilesMatch>
 </IfModule>

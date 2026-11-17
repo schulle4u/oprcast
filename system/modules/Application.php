@@ -113,6 +113,17 @@ final class Application
         if (preg_match('#^/([a-z0-9]+(?:-[a-z0-9]+)*)/feed\.(xml|atom|json)$#', $path, $match) === 1) {
             return $this->feed($match[1], $match[2]);
         }
+        if (preg_match('#^/([a-z0-9]+(?:-[a-z0-9]+)*)/([a-z0-9]+(?:-[a-z0-9]+)*)/chapters\.cue$#', $path, $match) === 1) {
+            $episode = $this->repository->episode($match[1], $match[2]);
+            $series = $this->repository->seriesBySlug($match[1]);
+            if (!Cuesheet::available($series, $episode)) {
+                throw new NotFoundException('Cuesheet not available.');
+            }
+            $audio = $this->repository->enclosure($series, $episode, 'mp3', $this->baseUrl());
+            return $this->conditional((new Cuesheet())->render($episode, $audio['url']), 'text/plain; charset=utf-8', [
+                'Content-Disposition' => 'attachment; filename="' . $episode['slug'] . '.cue"',
+            ]);
+        }
         if (preg_match('#^/([a-z0-9]+(?:-[a-z0-9]+)*)/([a-z0-9]+(?:-[a-z0-9]+)*)/chapters\.json$#', $path, $match) === 1) {
             $episode = $this->repository->episode($match[1], $match[2]);
             return $this->conditional($this->feeds->chapters($episode), 'application/json+chapters; charset=utf-8');
@@ -201,7 +212,7 @@ final class Application
     }
 
     /** Uses representation hashes: file mtimes cannot track deletions or scheduled publication. */
-    private function conditional(string $body, string $type): Response
+    private function conditional(string $body, string $type, array $extraHeaders = []): Response
     {
         $etag = '"' . hash('sha256', $body) . '"';
         $notModified = false;
@@ -218,6 +229,7 @@ final class Application
             }
         }
         $headers = [
+            ...$extraHeaders,
             'ETag' => $etag,
             'Cache-Control' => 'public, max-age=300',
         ];
