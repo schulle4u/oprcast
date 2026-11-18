@@ -187,6 +187,8 @@ Episoden mit 1–99 Kapiteln und `mp3` in den `formats` der Serie bieten zusätz
 
 Die CUE-Route unterstützt HEAD und ETag-Anfragen und wird auch statisch exportiert. Ohne Kapitel, bei mehr als 99 Kapiteln oder ohne MP3 entfällt der Link und die Route liefert 404. Entwürfe und zukünftige Episoden bleiben unveröffentlicht. Zusätzliche Metadaten sind nicht erforderlich; JSON-Ausgabe und Kapitelverweise im RSS bleiben unverändert.
 
+Cuesheets beginnen mit einer UTF-8-Byte-Order-Mark (BOM, `EF BB BF`), damit Player wie 1by1 die Zeichenkodierung erkennen können. Dies gilt für Downloads und statische Exporte.
+
 ## Transkripte und Kapitel auf der Website
 
 `transcript: transkripte/erste-show.vtt` ordnet eine Begleitdatei relativ zur Episoden-Datei zu. Unterstützt sind lokale UTF-8-Dateien `.txt` und `.vtt` (mit `WEBVTT`-Kopf). Absolute URLs, übergeordnete Pfade und Dateien außerhalb des Serienverzeichnisses sind unzulässig. Die CDN-Einstellung gilt nicht für Transkripte.

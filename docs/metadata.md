@@ -187,6 +187,8 @@ Episodes with 1–99 chapters and `mp3` in the series' `formats` also offer a **
 
 The CUE route supports HEAD and ETag requests and is included in static exports. Without chapters, with more than 99 chapters, or without MP3, the link is omitted and the route returns 404. Drafts and future episodes remain unpublished. No additional metadata is needed, and the JSON output and RSS chapter links remain unchanged.
 
+Cuesheets start with a UTF-8 byte order mark (BOM, `EF BB BF`) so players such as 1by1 can detect the encoding. This applies to both downloads and static exports.
+
 ## Transcripts and website chapter links
 
 `transcript: transcripts/first-show.vtt` associates a companion file relative to the episode file. Local UTF-8 `.txt` and `.vtt` files (with a `WEBVTT` header) are supported. Absolute URLs, parent paths and files outside the series directory are rejected. CDN configuration does not apply to transcripts.

@@ -81,6 +81,7 @@ try {
     }
     $assert(file_get_contents($public . '/cast/first/transcript.vtt') === $transcript, 'Transcript bytes changed.');
     $html = file_get_contents($public . '/cast/first/index.html');
+    $assert(str_starts_with(file_get_contents($public . '/cast/first/chapters.cue'), "\xEF\xBB\xBFTITLE "), 'Static cuesheets must retain the UTF-8 BOM.');
     $assert(str_contains($html, '/podcasts/cast/first/chapters.cue" download="first.cue">Cuesheet herunterladen (MP3)</a>'), 'Static cuesheet link ignores the base path or configured language.');
     $assert(str_contains(file_get_contents($public . '/cast/first/chapters.cue'), 'FILE "first.mp3" MP3'), 'Static cuesheet has the wrong audio filename.');
     $assert(str_contains(file_get_contents($public . '/.htaccess'), 'AddType text/plain .cue') && str_contains(file_get_contents($public . '/.htaccess'), 'Header set Content-Disposition "attachment"'), 'Static cuesheet download headers missing.');
@@ -93,12 +94,12 @@ try {
     $assert(str_contains(file_get_contents($public . '/.htaccess'), 'DirectoryIndex index.html'), 'Static server configuration missing.');
     $assert(!file_exists($public . '/index.php') && !is_dir($public . '/system'), 'Application sources were copied.');
     $builder->build($application, $public);
-    $before = file_get_contents($public . '/feed.xml');
     file_put_contents($episodeFile, str_replace('## Kapitel', '## Other', $episode));
     $builder->build($application, $public);
     $assert(!file_exists($public . '/cast/first/chapters.cue') && !str_contains(file_get_contents($public . '/cast/first/index.html'), 'chapters.cue'), 'Removing chapters leaves a stale cuesheet or download link.');
     file_put_contents($episodeFile, $episode);
     $builder->build($application, $public);
+    $before = file_get_contents($public . '/feed.xml');
     $lock = fopen($public . '/.oprcast-build.lock', 'c');
     flock($lock, LOCK_EX);
     $reject(fn () => $builder->build($application, $public), 'Concurrent build lock ignored.');

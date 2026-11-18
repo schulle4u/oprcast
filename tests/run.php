@@ -217,6 +217,7 @@ $test($repository->defaultFormat($series) === 'mp3', 'Repository resolves the de
 
 $cuesheet = new \Oprcast\Cuesheet();
 $cue = $cuesheet->render($episodes[0], $episodeEnclosures[0]['url']);
+$test(str_starts_with($cue, "\xEF\xBB\xBFTITLE ") && substr_count($cue, "\xEF\xBB\xBF") === 1, 'Cuesheets begin with exactly one UTF-8 BOM for player encoding detection.');
 $test(str_contains($cue, 'FILE "episode.mp3" MP3') && str_contains($cue, "  TRACK 02 AUDIO\r\n    TITLE \"Topic\"\r\n    INDEX 01 00:30:00"), 'Cuesheet references the local MP3 and chapter tracks.');
 $longEpisode = array_replace($episodes[0], ['title' => "An \"episode\"\nTITLE injected", 'chapters' => [
     ['startTime' => 0, 'title' => 'Grüße & Intro'], ['startTime' => 3723, 'title' => "A \"quote\"\r\nFILE injected"],

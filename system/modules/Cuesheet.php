@@ -14,7 +14,7 @@ final class Cuesheet
         return $count > 0 && $count <= 99 && in_array('mp3', $series['formats'] ?? [], true);
     }
 
-    /** Builds UTF-8 text using minute/second/frame indices (75 frames per second). */
+    /** Builds UTF-8 text with BOM using minute/second/frame indices (75 frames per second). */
     public function render(array $episode, string $audioUrl): string
     {
         $filename = rawurldecode(basename((string) parse_url($audioUrl, PHP_URL_PATH)));
@@ -29,6 +29,6 @@ final class Cuesheet
             $lines[] = '    TITLE ' . $quote($chapter['title']);
             $lines[] = sprintf('    INDEX 01 %02d:%02d:00', intdiv($seconds, 60), $seconds % 60);
         }
-        return implode("\r\n", $lines) . "\r\n";
+        return "\xEF\xBB\xBF" . implode("\r\n", $lines) . "\r\n";
     }
 }
